@@ -1,0 +1,19 @@
+{
+  "name": "Aurora",
+  "short_name": "Aurora",
+  "description": "Finanzas, hábitos y tareas en un solo sitio.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f2f1ee",
+  "theme_color": "#f2f1ee",
+  "lang": "es",
+  "categories": ["finance", "productivity", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

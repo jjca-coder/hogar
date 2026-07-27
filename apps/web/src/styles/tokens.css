@@ -1,0 +1,203 @@
+/* ============================================================
+   AURORA — Tokens del sistema de diseño
+   Escala tipográfica y semántica de color siguiendo las
+   Human Interface Guidelines de Apple.
+   El acento es intercambiable en caliente (8 opciones).
+   ============================================================ */
+
+:root {
+  /* ---------- Tipografía ---------- */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', system-ui,
+    'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
+
+  /* Escala de Apple. El usuario puede escalarla con --font-scale. */
+  --font-scale: 1;
+  --text-large-title: calc(34px * var(--font-scale));
+  --text-title-1: calc(28px * var(--font-scale));
+  --text-title-2: calc(22px * var(--font-scale));
+  --text-title-3: calc(20px * var(--font-scale));
+  --text-headline: calc(17px * var(--font-scale));
+  --text-body: calc(17px * var(--font-scale));
+  --text-callout: calc(16px * var(--font-scale));
+  --text-subhead: calc(15px * var(--font-scale));
+  --text-footnote: calc(13px * var(--font-scale));
+  --text-caption-1: calc(12px * var(--font-scale));
+  --text-caption-2: calc(11px * var(--font-scale));
+
+  /* ---------- Rejilla de 4 px ---------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ---------- Radios ---------- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+  --radius-full: 9999px;
+
+  /* ---------- Densidad ---------- */
+  --row-height: 44px; /* mínimo táctil de Apple */
+  --list-padding-y: var(--space-3);
+
+  /* ---------- Movimiento ---------- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 350ms;
+
+  /* ---------- Acentos disponibles ---------- */
+  --accent-blue: #0a84ff;
+  --accent-indigo: #5e5ce6;
+  --accent-purple: #bf5af2;
+  --accent-pink: #ff375f;
+  --accent-orange: #ff9f0a;
+  --accent-green: #30d158;
+  --accent-teal: #40c8e0;
+  --accent-graphite: #8e8e93;
+}
+
+[data-density='compact'] {
+  --row-height: 36px;
+  --list-padding-y: var(--space-2);
+}
+
+/* ============================================================
+   MODO CLARO — grises cálidos, no neutros puros
+   ============================================================ */
+
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-base: #f2f1ee;
+  --bg-elevated: #ffffff;
+  --bg-elevated-2: #ffffff;
+  --bg-inset: #e9e8e4;
+  --bg-hover: rgb(0 0 0 / 0.04);
+  --bg-active: rgb(0 0 0 / 0.08);
+
+  --material-thick: rgb(255 255 255 / 0.86);
+  --material-regular: rgb(255 255 255 / 0.72);
+  --material-thin: rgb(255 255 255 / 0.55);
+
+  --text-primary: #1c1c1e;
+  --text-secondary: #55545a;
+  --text-tertiary: #8a8a8f;
+  --text-quaternary: #b4b3b8;
+  --text-on-accent: #ffffff;
+
+  --separator: rgb(60 60 67 / 0.14);
+  --separator-opaque: #d8d7d2;
+
+  /* Semánticos financieros: verde ingreso, rojo suave gasto, azul traspaso */
+  --income: #248a3d;
+  --expense: #c9384a;
+  --transfer: #0a6fd8;
+  --warning: #b25000;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 16px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 12px 40px rgb(0 0 0 / 0.14);
+}
+
+/* ============================================================
+   MODO OSCURO — superficies elevadas, nunca negro puro
+   ============================================================ */
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg-base: #131316;
+  --bg-elevated: #1c1c20;
+  --bg-elevated-2: #26262b;
+  --bg-inset: #0e0e10;
+  --bg-hover: rgb(255 255 255 / 0.06);
+  --bg-active: rgb(255 255 255 / 0.1);
+
+  --material-thick: rgb(30 30 34 / 0.88);
+  --material-regular: rgb(30 30 34 / 0.74);
+  --material-thin: rgb(30 30 34 / 0.55);
+
+  --text-primary: #f5f5f7;
+  --text-secondary: #a9a9b0;
+  --text-tertiary: #79797f;
+  --text-quaternary: #54545a;
+  --text-on-accent: #ffffff;
+
+  --separator: rgb(255 255 255 / 0.1);
+  --separator-opaque: #34343a;
+
+  --income: #30d158;
+  --expense: #ff6b7f;
+  --transfer: #64a8ff;
+  --warning: #ff9f0a;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 16px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 12px 40px rgb(0 0 0 / 0.55);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --bg-base: #131316;
+    --bg-elevated: #1c1c20;
+    --bg-elevated-2: #26262b;
+    --bg-inset: #0e0e10;
+    --bg-hover: rgb(255 255 255 / 0.06);
+    --bg-active: rgb(255 255 255 / 0.1);
+
+    --material-thick: rgb(30 30 34 / 0.88);
+    --material-regular: rgb(30 30 34 / 0.74);
+    --material-thin: rgb(30 30 34 / 0.55);
+
+    --text-primary: #f5f5f7;
+    --text-secondary: #a9a9b0;
+    --text-tertiary: #79797f;
+    --text-quaternary: #54545a;
+
+    --separator: rgb(255 255 255 / 0.1);
+    --separator-opaque: #34343a;
+
+    --income: #30d158;
+    --expense: #ff6b7f;
+    --transfer: #64a8ff;
+    --warning: #ff9f0a;
+
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+    --shadow-md: 0 4px 16px rgb(0 0 0 / 0.4);
+    --shadow-lg: 0 12px 40px rgb(0 0 0 / 0.55);
+  }
+}
+
+/* ---------- Acento activo (lo fija el ThemeProvider) ---------- */
+:root {
+  --accent: var(--accent-indigo);
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --accent-border: color-mix(in srgb, var(--accent) 38%, transparent);
+}
+
+/* ---------- Respeto por prefers-reduced-motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
