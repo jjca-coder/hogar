@@ -485,6 +485,8 @@ Deno.serve(async (req) => {
     }
   } catch (err) {
     console.error(err)
-    return json({ error: humanMessage(err) }, 502)
+    // El detalle acompaña al mensaje para poder diagnosticar desde la propia
+    // app; no lleva secretos, solo lo que ha respondido el agregador.
+    return json({ error: humanMessage(err), detail: technicalDetail(err) }, 502)
   }
 })

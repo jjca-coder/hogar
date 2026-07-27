@@ -13,11 +13,34 @@ interface Institution {
   maxConsentDays: number | null
 }
 
-/** Llama a la Edge Function; el navegador nunca habla con el banco. */
+/**
+ * Llama a la Edge Function; el navegador nunca habla con el banco.
+ *
+ * Cuando la función responde con error, `functions.invoke` da un mensaje
+ * genérico ("non-2xx status code") y se pierde el cuerpo. Aquí se lee el
+ * cuerpo real para poder mostrar qué ha pasado de verdad.
+ */
 async function callBank<T>(payload: Record<string, unknown>): Promise<T> {
   const { data, error } = await sb().functions.invoke('bank', { body: payload })
-  if (error) throw error
-  if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error)
+
+  if (error) {
+    const context = (error as { context?: Response }).context
+    if (context && typeof context.json === 'function') {
+      try {
+        const body = (await context.json()) as { error?: string; detail?: string }
+        const message = body.error ?? error.message
+        throw new Error(body.detail ? `${message}\n\n${body.detail}` : message)
+      } catch (parseError) {
+        if (parseError instanceof Error && parseError.message !== error.message) throw parseError
+      }
+    }
+    throw error
+  }
+
+  const body = data as { error?: string; detail?: string }
+  if (body?.error) {
+    throw new Error(body.detail ? `${body.error}\n\n${body.detail}` : body.error)
+  }
   return data as T
 }
 
