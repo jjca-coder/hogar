@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nextOccurrence, parseTaskInput } from './nlp'
+import { nextOccurrence, parseTaskInput, rruleToWeekdays, weekdaysToRrule } from './nlp'
 
 /** Lunes 27 de julio de 2026, para que las pruebas no dependan del reloj. */
 const MONDAY = new Date(2026, 6, 27)
@@ -111,5 +111,28 @@ describe('nextOccurrence', () => {
 
   it('no se descuadra al cruzar fin de mes', () => {
     expect(nextOccurrence('FREQ=DAILY', '2026-07-31')).toBe('2026-08-01')
+  })
+})
+
+describe('recurrencia por días concretos', () => {
+  it('convierte días ISO a RRULE y vuelta', () => {
+    expect(weekdaysToRrule([1, 3, 5])).toBe('FREQ=WEEKLY;BYDAY=MO,WE,FR')
+    expect(rruleToWeekdays('FREQ=WEEKLY;BYDAY=MO,WE,FR')).toEqual([1, 3, 5])
+  })
+
+  it('sin días no genera regla', () => {
+    expect(weekdaysToRrule([])).toBeNull()
+    expect(rruleToWeekdays('FREQ=WEEKLY')).toEqual([])
+  })
+
+  it('salta al siguiente día marcado, no una semana entera', () => {
+    // Lunes 27 con L-X-V: la siguiente es el miércoles 29
+    expect(nextOccurrence('FREQ=WEEKLY;BYDAY=MO,WE,FR', '2026-07-27')).toBe('2026-07-29')
+    // Viernes 31 con L-X-V: salta al lunes 3 de agosto
+    expect(nextOccurrence('FREQ=WEEKLY;BYDAY=MO,WE,FR', '2026-07-31')).toBe('2026-08-03')
+  })
+
+  it('de lunes a viernes salta el fin de semana', () => {
+    expect(nextOccurrence('FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR', '2026-07-31')).toBe('2026-08-03')
   })
 })

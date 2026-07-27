@@ -183,6 +183,17 @@ export function nextOccurrence(rrule: string, from: string): string {
   const interval = Number(rrule.match(/INTERVAL=(\d+)/)?.[1] ?? 1)
   const date = new Date(from + 'T12:00:00')
 
+  // Días concretos: el siguiente día de la lista, no un salto fijo
+  const targetDays = rruleToWeekdays(rrule)
+  if (targetDays.length > 0) {
+    for (let i = 1; i <= 7; i++) {
+      const candidate = addDays(date, i)
+      const isoDay = candidate.getDay() === 0 ? 7 : candidate.getDay()
+      if (targetDays.includes(isoDay)) return iso(candidate)
+    }
+    return iso(addDays(date, 7))
+  }
+
   switch (freq) {
     case 'WEEKLY':
       return iso(addDays(date, 7 * interval))
@@ -208,7 +219,33 @@ export const RRULE_LABELS: Array<{ value: string | null; label: string }> = [
   { value: 'FREQ=WEEKLY;INTERVAL=2', label: 'Cada 2 semanas' },
   { value: 'FREQ=MONTHLY', label: 'Cada mes' },
   { value: 'FREQ=YEARLY', label: 'Cada año' },
+  // Días concretos: la tarea reaparece cada uno de esos días
+  { value: 'FREQ=WEEKLY;BYDAY=MO,WE,FR', label: 'Lunes, miércoles y viernes' },
+  { value: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR', label: 'De lunes a viernes' },
+  { value: 'FREQ=WEEKLY;BYDAY=SA,SU', label: 'Fines de semana' },
 ]
+
+/** Códigos RRULE de los días, en orden ISO (lunes primero). */
+export const RRULE_DAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] as const
+
+/** Construye una RRULE de días concretos: [1,3,5] -> FREQ=WEEKLY;BYDAY=MO,WE,FR */
+export function weekdaysToRrule(isoDays: readonly number[]): string | null {
+  const codes = [...isoDays]
+    .sort((a, b) => a - b)
+    .map((d) => RRULE_DAYS[d - 1])
+    .filter(Boolean)
+  return codes.length > 0 ? `FREQ=WEEKLY;BYDAY=${codes.join(',')}` : null
+}
+
+/** Días ISO de una RRULE con BYDAY. Vacío si no los tiene. */
+export function rruleToWeekdays(rrule: string | null): number[] {
+  const byday = rrule?.match(/BYDAY=([A-Z,]+)/)?.[1]
+  if (!byday) return []
+  return byday
+    .split(',')
+    .map((code) => RRULE_DAYS.indexOf(code as (typeof RRULE_DAYS)[number]) + 1)
+    .filter((d) => d > 0)
+}
 
 export function rruleLabel(rrule: string | null): string {
   return RRULE_LABELS.find((r) => r.value === rrule)?.label ?? 'Se repite'

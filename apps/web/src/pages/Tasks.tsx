@@ -2,24 +2,30 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, isPast, isToday, isTomorrow, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { CheckCircle2, Plus, Repeat, Sparkles, Trash2 } from 'lucide-react'
+import { CheckCircle2, Plus, Repeat, Settings2, Sparkles, Trash2 } from 'lucide-react'
 import {
+  RRULE_LABELS,
+  WEEKDAY_LETTERS,
   initials,
   nextOccurrence,
   parseTaskInput,
   rruleLabel,
+  rruleToWeekdays,
   upperFirst,
+  weekdaysToRrule,
   type Task,
   type TaskPriority,
 } from '@aurora/shared'
 import { sb, humanError } from '@/lib/supabase'
 import { useActiveHousehold, usePermissions, useUserId } from '@/lib/session'
 import {
+  Button,
   Card,
   Checkbox,
   EmptyState,
   InsetList,
   Segmented,
+  Sheet,
   Skeleton,
 } from '@/design-system/primitives'
 
@@ -49,6 +55,7 @@ export default function Tasks() {
   const [view, setView] = useState<View>('today')
   const [input, setInput] = useState('')
   const [error, setError] = useState('')
+  const [repeating, setRepeating] = useState<Task | null>(null)
 
   const { data: tasks, isPending } = useQuery({
     queryKey: ['tasks', householdId],
@@ -122,6 +129,18 @@ export default function Tasks() {
       }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tasks', householdId] }),
+    onError: (e) => setError(humanError(e)),
+  })
+
+  const setRecurrence = useMutation({
+    mutationFn: async ({ task, rrule }: { task: Task; rrule: string | null }) => {
+      const { error } = await sb().from('tasks').update({ rrule }).eq('id', task.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      setRepeating(null)
+      queryClient.invalidateQueries({ queryKey: ['tasks', householdId] })
+    },
     onError: (e) => setError(humanError(e)),
   })
 
@@ -327,6 +346,17 @@ export default function Tasks() {
                 )}
                 {canWriteTasks && (
                   <button
+                    onClick={() => setRepeating(task)}
+                    className="p-1 transition-colors"
+                    style={{ color: task.rrule ? 'var(--accent)' : 'var(--text-quaternary)' }}
+                    aria-label="Cambiar repetición"
+                    title={task.rrule ? rruleLabel(task.rrule) : 'No se repite'}
+                  >
+                    <Settings2 size={15} />
+                  </button>
+                )}
+                {canWriteTasks && (
+                  <button
                     onClick={() => remove.mutate(task.id)}
                     className="p-1 text-[var(--text-quaternary)] hover:text-[var(--expense)]"
                     aria-label="Borrar tarea"
@@ -339,7 +369,114 @@ export default function Tasks() {
           })}
         </InsetList>
       )}
+
+      {repeating && (
+        <RecurrenceSheet
+          task={repeating}
+          onClose={() => setRepeating(null)}
+          onSave={(rrule) => setRecurrence.mutate({ task: repeating, rrule })}
+          saving={setRecurrence.isPending}
+        />
+      )}
     </div>
+  )
+}
+
+/** Elegir cada cuánto se repite una tarea, incluidos días concretos. */
+function RecurrenceSheet({
+  task,
+  onClose,
+  onSave,
+  saving,
+}: {
+  task: Task
+  onClose: () => void
+  onSave: (rrule: string | null) => void
+  saving: boolean
+}) {
+  const initialDays = rruleToWeekdays(task.rrule)
+  const [mode, setMode] = useState<'preset' | 'days'>(initialDays.length > 0 ? 'days' : 'preset')
+  const [preset, setPreset] = useState<string | null>(
+    initialDays.length > 0 ? null : (task.rrule ?? null),
+  )
+  const [days, setDays] = useState<number[]>(initialDays.length > 0 ? initialDays : [1, 3, 5])
+
+  const simple = RRULE_LABELS.filter((r) => !r.value?.includes('BYDAY'))
+
+  return (
+    <Sheet open onClose={onClose} title="¿Cada cuánto se repite?">
+      <div className="space-y-5">
+        <p className="t-subhead text-[var(--text-tertiary)]">{task.title}</p>
+
+        <Segmented
+          ariaLabel="Tipo de repetición"
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: 'preset', label: 'Cada X tiempo' },
+            { value: 'days', label: 'Días concretos' },
+          ]}
+        />
+
+        {mode === 'preset' ? (
+          <div className="space-y-2">
+            {simple.map((r) => (
+              <button
+                key={r.label}
+                onClick={() => setPreset(r.value)}
+                className="w-full px-4 py-3 rounded-[12px] border text-left t-body transition-colors"
+                style={{
+                  borderColor: preset === r.value ? 'var(--accent)' : 'var(--separator-opaque)',
+                  backgroundColor: preset === r.value ? 'var(--accent-soft)' : 'transparent',
+                  color: preset === r.value ? 'var(--accent)' : 'var(--text-primary)',
+                }}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div>
+            <p className="t-subhead font-medium mb-2">Se repetirá estos días</p>
+            <div className="flex gap-1.5">
+              {WEEKDAY_LETTERS.map((letter, i) => {
+                const day = i + 1
+                const on = days.includes(day)
+                return (
+                  <button
+                    key={day}
+                    onClick={() =>
+                      setDays((prev) =>
+                        prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort(),
+                      )
+                    }
+                    className="flex-1 aspect-square rounded-[12px] font-bold t-subhead transition-all active:scale-95"
+                    style={{
+                      backgroundColor: on ? 'var(--accent)' : 'var(--bg-inset)',
+                      color: on ? 'var(--text-on-accent)' : 'var(--text-tertiary)',
+                    }}
+                  >
+                    {letter}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="t-footnote text-[var(--text-tertiary)] mt-2">
+              Al completarla, reaparecerá el siguiente día marcado.
+            </p>
+          </div>
+        )}
+
+        <Button
+          size="lg"
+          fullWidth
+          loading={saving}
+          onClick={() => onSave(mode === 'days' ? weekdaysToRrule(days) : preset)}
+        >
+          Guardar
+        </Button>
+      </div>
+    </Sheet>
   )
 }
 

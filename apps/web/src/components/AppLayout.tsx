@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import { CheckCircle2, Flame, Home, Plus, Wallet } from 'lucide-react'
 import { usePermissions } from '@/lib/session'
 import AddTransactionSheet from '@/components/AddTransactionSheet'
@@ -22,15 +23,25 @@ export default function AppLayout() {
   const { canReadFinances, canWriteFinances } = usePermissions()
   const [addOpen, setAddOpen] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
 
   // El rol "child" no ve finanzas: la pestaña desaparece de la barra.
   const tabs = TABS.filter((t) => !t.needsFinances || canReadFinances)
 
   return (
-    <div className="min-h-dvh">
-      <main className="pb-28">
-        <Outlet />
-      </main>
+    <div className="min-h-dvh overflow-x-hidden">
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.main
+          key={location.pathname}
+          className="pb-28"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <Outlet />
+        </motion.main>
+      </AnimatePresence>
 
       <nav
         className="fixed bottom-0 inset-x-0 material-thick border-t safe-bottom z-30"
@@ -43,14 +54,27 @@ export default function AppLayout() {
               key={to}
               to={to}
               end={to === '/'}
-              className="flex-1 flex flex-col items-center gap-1 py-2.5 transition-colors"
+              className="relative flex-1 flex flex-col items-center gap-1 py-2.5 transition-colors"
               style={({ isActive }) => ({
                 color: isActive ? 'var(--accent)' : 'var(--text-tertiary)',
               })}
             >
               {({ isActive }) => (
                 <>
-                  <Icon size={22} strokeWidth={isActive ? 2.4 : 1.9} />
+                  {isActive && (
+                    <motion.span
+                      layoutId="tab-indicator"
+                      className="absolute top-0 h-[2px] w-8 rounded-full"
+                      style={{ backgroundColor: 'var(--accent)' }}
+                      transition={{ type: 'spring', stiffness: 480, damping: 34 }}
+                    />
+                  )}
+                  <motion.span
+                    animate={{ scale: isActive ? 1.06 : 1 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+                  >
+                    <Icon size={22} strokeWidth={isActive ? 2.4 : 1.9} />
+                  </motion.span>
                   <span className="t-caption-2 font-semibold">{label}</span>
                 </>
               )}
@@ -60,7 +84,7 @@ export default function AppLayout() {
           {canWriteFinances && (
             <button
               onClick={() => setAddOpen(true)}
-              className="flex-1 flex flex-col items-center gap-1 py-2.5"
+              className="flex-1 flex flex-col items-center gap-1 py-2.5 active:scale-90 transition-transform"
               aria-label="Añadir movimiento"
             >
               <span
