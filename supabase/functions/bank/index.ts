@@ -110,8 +110,9 @@ class ApiError extends Error {
 /** Traduce los fallos del agregador a algo que una persona entienda. */
 function humanMessage(err: unknown): string {
   if (err instanceof ApiError) {
-    if (err.status === 401 || err.status === 403)
-      return 'Aurora no tiene permiso para hablar con el agregador. Revisa las credenciales.'
+    if (err.status === 401) return 'Las credenciales del agregador no son válidas.'
+    if (err.status === 403)
+      return 'La aplicación del agregador no está activa o no tiene permiso para esto.'
     if (err.status === 404) return 'No he encontrado eso en el banco.'
     if (err.status === 429)
       return 'El banco ha recibido demasiadas peticiones hoy. Prueba dentro de un rato.'
@@ -119,6 +120,17 @@ function humanMessage(err: unknown): string {
     return 'El banco ha rechazado la petición.'
   }
   return err instanceof Error ? err.message : 'Algo ha ido mal.'
+}
+
+/**
+ * Detalle técnico que acompaña al mensaje humano. Se muestra en la app para
+ * poder diagnosticar sin tener que ir a buscar los logs del servidor; no
+ * contiene secretos, solo la respuesta del agregador.
+ */
+function technicalDetail(err: unknown): string | null {
+  if (err instanceof ApiError) return `${err.status}: ${err.detail.slice(0, 400)}`
+  if (err instanceof Error && err.stack) return err.message
+  return null
 }
 
 // ---------- Tipos del agregador (solo lo que se usa) ----------
@@ -233,21 +245,30 @@ async function finishConnection(
     body: JSON.stringify({ code }),
   })
 
-  // La entidad se guarda para poder mostrarla y reconectar después
-  const { data: institution } = await supabase
+  // La entidad se guarda para poder mostrarla y reconectar después.
+  // Si no se puede registrar, se sigue igualmente: perder el logo del banco
+  // no justifica tirar abajo una autorización que el usuario ya ha completado.
+  let institutionId: string | null = null
+  const { data: institution, error: instError } = await supabase
     .from('institutions')
     .upsert(
       { name: bankName, country, provider: 'enablebanking', provider_institution_id: bankName },
       { onConflict: 'provider,provider_institution_id' },
     )
     .select('id')
-    .single()
+    .maybeSingle()
+
+  if (instError) {
+    console.error('No se pudo registrar la entidad:', instError)
+  } else {
+    institutionId = (institution?.id as string | undefined) ?? null
+  }
 
   const { data: connection, error: connError } = await supabase
     .from('connections')
     .insert({
       household_id: householdId,
-      institution_id: institution?.id ?? null,
+      institution_id: institutionId,
       provider: 'enablebanking',
       provider_ref: session.session_id,
       status: 'active',
@@ -264,7 +285,7 @@ async function finishConnection(
     discovered.push({
       household_id: householdId,
       connection_id: connection.id,
-      institution_id: institution?.id ?? null,
+      institution_id: institutionId,
       name: acc.name || acc.product || 'Cuenta',
       type: acc.cash_account_type === 'CARD' ? 'credit_card' : 'checking',
       currency: acc.currency ?? 'EUR',
@@ -367,13 +388,11 @@ async function syncConnection(supabase: SupabaseClient, connectionId: string) {
 
     if (rows.length > 0) {
       // ignoreDuplicates: reejecutar la sincronización no duplica nada
-      const { error: insertError, count } = await supabase
-        .from('transactions')
-        .upsert(rows, {
-          onConflict: 'account_id,dedup_hash',
-          ignoreDuplicates: true,
-          count: 'exact',
-        })
+      const { error: insertError, count } = await supabase.from('transactions').upsert(rows, {
+        onConflict: 'account_id,dedup_hash',
+        ignoreDuplicates: true,
+        count: 'exact',
+      })
       if (insertError) throw insertError
       inserted += count ?? 0
     }
