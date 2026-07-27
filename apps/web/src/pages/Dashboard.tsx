@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronRight, Eye, EyeOff, Settings, Wallet } from 'lucide-react'
+import { ChevronRight, Eye, EyeOff, PiggyBank, Repeat, Settings, Wallet } from 'lucide-react'
 import { money, sum, upperFirst, type Category } from '@aurora/shared'
 import { monthRange, useAccounts, useCategories, useTransactions } from '@/lib/queries'
 import { useActiveHousehold, useProfile, usePermissions } from '@/lib/session'
@@ -143,6 +143,21 @@ export default function Dashboard() {
                 </p>
               )}
             </Card>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Link to="/finanzas/presupuesto">
+              <Card className="active:scale-[0.98] transition-transform h-full flex items-center gap-2.5">
+                <PiggyBank size={18} className="text-[var(--accent)] shrink-0" />
+                <span className="t-subhead font-medium">Presupuesto</span>
+              </Card>
+            </Link>
+            <Link to="/finanzas/suscripciones">
+              <Card className="active:scale-[0.98] transition-transform h-full flex items-center gap-2.5">
+                <Repeat size={18} className="text-[var(--accent)] shrink-0" />
+                <span className="t-subhead font-medium">Suscripciones</span>
+              </Card>
+            </Link>
           </div>
 
           {byCategory.rows.length > 0 && (
