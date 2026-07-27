@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { CheckCircle2, Flame } from 'lucide-react'
 import { isConfigured } from '@/lib/supabase'
 import { useActiveHousehold, useSession } from '@/lib/session'
@@ -13,6 +13,7 @@ import Transactions from '@/pages/Transactions'
 import ImportStatement from '@/pages/ImportStatement'
 import Budgets from '@/pages/Budgets'
 import Subscriptions from '@/pages/Subscriptions'
+import { Privacy, Terms } from '@/pages/Legal'
 import { Card, EmptyState } from '@/design-system/primitives'
 
 function Loading() {
@@ -58,9 +59,23 @@ function ComingSoon({ title, icon }: { title: string; icon: React.ReactNode }) {
   )
 }
 
+/** Rutas que deben verse sin sesión: el agregador bancario las revisa. */
+const PUBLIC_PATHS = ['/privacidad', '/terminos'] as const
+
 export default function App() {
   const { session, ready } = useSession()
   const { membership, loading } = useActiveHousehold()
+  const { pathname } = useLocation()
+
+  // Antes que nada: las legales no dependen de sesión ni de configuración.
+  if (PUBLIC_PATHS.includes(pathname as (typeof PUBLIC_PATHS)[number])) {
+    return (
+      <Routes>
+        <Route path="/privacidad" element={<Privacy />} />
+        <Route path="/terminos" element={<Terms />} />
+      </Routes>
+    )
+  }
 
   if (!isConfigured) return <NotConfigured />
   if (!ready) return <Loading />

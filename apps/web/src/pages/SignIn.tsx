@@ -252,6 +252,16 @@ export default function SignIn() {
             </button>
           )}
         </div>
+
+        <p className="t-caption text-center text-[var(--text-tertiary)] mt-8">
+          <a href="/privacidad" className="underline underline-offset-2">
+            Privacidad
+          </a>
+          {' · '}
+          <a href="/terminos" className="underline underline-offset-2">
+            Términos
+          </a>
+        </p>
       </motion.div>
     </div>
   )
