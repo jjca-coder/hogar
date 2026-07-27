@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Landmark, Plus, Trash2 } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { formatDistanceToNow } from 'date-fns'
+import { es } from 'date-fns/locale'
+import { Landmark, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import {
   isLiability,
   money,
@@ -9,9 +12,9 @@ import {
   type Account,
   type AccountType,
 } from '@aurora/shared'
-import { humanError } from '@/lib/supabase'
+import { sb, humanError } from '@/lib/supabase'
 import { useAccounts, useDeleteAccount, useSaveAccount } from '@/lib/queries'
-import { usePermissions } from '@/lib/session'
+import { useActiveHousehold, usePermissions } from '@/lib/session'
 import {
   Amount,
   Button,
@@ -48,11 +51,63 @@ const GROUP_ORDER = [
   'Otros',
 ]
 
+interface Connection {
+  id: string
+  last_synced_at: string | null
+  last_error: string | null
+  institution: { name: string } | null
+}
+
 export default function Accounts() {
   const { data: accounts, isPending } = useAccounts()
   const { canWriteFinances } = usePermissions()
+  const { membership } = useActiveHousehold()
+  const queryClient = useQueryClient()
   const [editing, setEditing] = useState<Account | null>(null)
   const [creating, setCreating] = useState(false)
+  const [syncing, setSyncing] = useState<string | null>(null)
+  const [syncError, setSyncError] = useState('')
+
+  const { data: connectionsData } = useQuery({
+    queryKey: ['connections', membership?.household_id],
+    enabled: Boolean(membership?.household_id),
+    queryFn: async (): Promise<Connection[]> => {
+      const { data, error } = await sb()
+        .from('connections')
+        .select('id, last_synced_at, last_error, institution:institutions(name)')
+        .eq('household_id', membership!.household_id)
+        .eq('status', 'active')
+      if (error) throw error
+      return (data ?? []) as unknown as Connection[]
+    },
+  })
+  const connections = connectionsData ?? []
+
+  const sync = async (connectionId: string) => {
+    setSyncing(connectionId)
+    setSyncError('')
+    try {
+      const { data, error } = await sb().functions.invoke('bank', {
+        body: { action: 'sync', connectionId },
+      })
+      if (error) {
+        const context = (error as { context?: Response }).context
+        if (context?.json) {
+          const body = (await context.json()) as { error?: string }
+          throw new Error(body.error ?? error.message)
+        }
+        throw error
+      }
+      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error)
+      await queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      await queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      await queryClient.invalidateQueries({ queryKey: ['connections'] })
+    } catch (e) {
+      setSyncError(humanError(e))
+    } finally {
+      setSyncing(null)
+    }
+  }
 
   // Memoizado: `accounts ?? []` crearía un array nuevo en cada render y
   // anularía la caché de los useMemo que dependen de él.
@@ -172,6 +227,40 @@ export default function Accounts() {
             </section>
           )
         })
+      )}
+
+      {canWriteFinances && connections.length > 0 && (
+        <Card className="space-y-3">
+          {connections.map((c) => (
+            <div key={c.id} className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="t-subhead font-medium truncate">
+                  {c.institution?.name ?? 'Banco conectado'}
+                </p>
+                <p className="t-caption text-[var(--text-tertiary)]">
+                  {c.last_error
+                    ? c.last_error
+                    : c.last_synced_at
+                      ? `Actualizado ${formatDistanceToNow(new Date(c.last_synced_at), { locale: es, addSuffix: true })}`
+                      : 'Sin sincronizar todavía'}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="tinted"
+                loading={syncing === c.id}
+                onClick={() => sync(c.id)}
+              >
+                <RefreshCw size={14} /> Actualizar
+              </Button>
+            </div>
+          ))}
+          {syncError && (
+            <p className="t-footnote" style={{ color: 'var(--expense)' }} role="alert">
+              {syncError}
+            </p>
+          )}
+        </Card>
       )}
 
       {canWriteFinances && (

@@ -161,6 +161,8 @@ interface SessionResponse {
   session_id: string
   accounts: SessionAccount[]
   access?: { valid_until?: string }
+  /** La propia sesión dice de qué banco es: más fiable que arrastrarlo. */
+  aspsp?: { name?: string; country?: string }
 }
 
 interface Balance {
@@ -245,6 +247,11 @@ async function finishConnection(
     body: JSON.stringify({ code }),
   })
 
+  // El nombre que devuelve la sesión manda sobre el que traía el cliente:
+  // si el usuario abrió el enlace en otra pestaña, ese se pierde.
+  bankName = session.aspsp?.name || bankName || 'Banco'
+  country = session.aspsp?.country || country
+
   // La entidad se guarda para poder mostrarla y reconectar después.
   // Si no se puede registrar, se sigue igualmente: perder el logo del banco
   // no justifica tirar abajo una autorización que el usuario ya ha completado.
@@ -282,15 +289,17 @@ async function finishConnection(
   const discovered = []
   for (const acc of session.accounts ?? []) {
     const iban = acc.account_id?.iban ?? acc.account_id?.other?.identification ?? ''
+    const last4 = iban ? iban.slice(-4).toUpperCase() : null
     discovered.push({
       household_id: householdId,
       connection_id: connection.id,
       institution_id: institutionId,
-      name: acc.name || acc.product || 'Cuenta',
+      // Muchos bancos no mandan nombre: mejor "Sabadell ···1234" que "Cuenta"
+      name: acc.name || acc.product || (last4 ? `${bankName} ···${last4}` : bankName),
       type: acc.cash_account_type === 'CARD' ? 'credit_card' : 'checking',
       currency: acc.currency ?? 'EUR',
       // Del IBAN solo se guardan los 4 últimos: el completo nunca sale de aquí
-      iban_last4: iban ? iban.slice(-4).toUpperCase() : null,
+      iban_last4: last4 && /^[0-9A-Z]{4}$/.test(last4) ? last4 : null,
       provider_account_id: acc.uid,
       is_manual: false,
       current_balance: 0,
@@ -304,7 +313,23 @@ async function finishConnection(
     if (error) throw error
   }
 
-  return { connectionId: connection.id, accounts: discovered.length }
+  // Primera sincronización inmediata: sin esto las cuentas se quedan a 0 €
+  // y sin movimientos, que es justo lo que el usuario espera ver al volver.
+  let synced = 0
+  try {
+    const result = await syncConnection(supabase, connection.id)
+    synced = result.inserted
+  } catch (e) {
+    // La conexión ya está hecha: si la primera sincronización falla, se
+    // guarda el motivo y se puede reintentar desde la app.
+    console.error('Primera sincronización fallida:', e)
+    await supabase
+      .from('connections')
+      .update({ last_error: humanMessage(e) })
+      .eq('id', connection.id)
+  }
+
+  return { connectionId: connection.id, accounts: discovered.length, transactions: synced }
 }
 
 async function syncConnection(supabase: SupabaseClient, connectionId: string) {
