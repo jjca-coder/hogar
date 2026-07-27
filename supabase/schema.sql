@@ -228,8 +228,10 @@ create policy "editar mi perfil" on public.profiles
 
 create policy "crear hogar" on public.households
   for insert with check (created_by = auth.uid());
+-- El "or created_by" es imprescindible: el RETURNING del INSERT se evalúa antes
+-- de que el trigger on_household_created inserte la membresía.
 create policy "ver mi hogar" on public.households
-  for select using (private.is_member(id));
+  for select using (private.is_member(id) or created_by = auth.uid());
 create policy "editar mi hogar" on public.households
   for update using (private.is_member(id));
 
