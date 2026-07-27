@@ -164,10 +164,12 @@ create table public.transactions (
   updated_at timestamptz not null default now()
 );
 
--- Idempotencia de la sincronización: el mismo movimiento no puede entrar dos veces.
+-- Idempotencia de la sincronización: el mismo movimiento no puede entrar dos
+-- veces. NO puede ser un índice parcial: ON CONFLICT no los admite (ver 0014).
+-- Los NULL no colisionan en un índice único, así que los movimientos manuales
+-- (sin huella) conviven sin problema.
 create unique index idx_transactions_dedup
-  on public.transactions (account_id, dedup_hash)
-  where dedup_hash is not null;
+  on public.transactions (account_id, dedup_hash);
 
 create index idx_transactions_account_date
   on public.transactions (account_id, booked_at desc);
