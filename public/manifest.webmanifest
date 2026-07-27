@@ -1,0 +1,18 @@
+{
+  "name": "Hogar",
+  "short_name": "Hogar",
+  "description": "Finanzas, tareas y hábitos de casa",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f5f1",
+  "theme_color": "#1c1917",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
