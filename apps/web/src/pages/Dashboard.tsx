@@ -25,7 +25,8 @@ export default function Dashboard() {
   const counted = (accounts ?? []).filter((a) => a.include_in_net_worth)
   const netWorth = sum(counted.map((a) => money(a.current_balance)))
 
-  const txs = useMemo(() => transactions ?? [], [transactions])
+  // Los traspasos entre cuentas propias no son gasto ni ingreso
+  const txs = useMemo(() => (transactions ?? []).filter((t) => !t.is_transfer), [transactions])
   const spent = sum(txs.filter((t) => t.amount < 0).map((t) => money(-t.amount)))
   const earned = sum(txs.filter((t) => t.amount > 0).map((t) => money(t.amount)))
 

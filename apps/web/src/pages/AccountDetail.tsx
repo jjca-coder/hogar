@@ -51,6 +51,8 @@ export default function AccountDetail() {
 
   const catById = useMemo(() => new Map((categories ?? []).map((c) => [c.id, c])), [categories])
   const list = useMemo(() => transactions ?? [], [transactions])
+  // Para los totales del mes, los traspasos no cuentan
+  const real = useMemo(() => list.filter((t) => !t.is_transfer), [list])
 
   const byDay = useMemo(() => {
     const map = new Map<string, Transaction[]>()
@@ -64,7 +66,7 @@ export default function AccountDetail() {
       .map((t) => money(t.amount)),
   )
   const monthOut = sum(
-    list
+    real
       .filter((t) => t.amount < 0 && t.booked_at >= format(new Date(), 'yyyy-MM-01'))
       .map((t) => money(-t.amount)),
   )

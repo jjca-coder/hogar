@@ -136,7 +136,7 @@ export default function Budgets() {
   const spentByCategory = useMemo(() => {
     const map = new Map<string, number>()
     for (const t of transactions ?? []) {
-      if (t.amount >= 0 || t.excluded_from_budget || !t.category_id) continue
+      if (t.amount >= 0 || t.excluded_from_budget || t.is_transfer || !t.category_id) continue
       map.set(t.category_id, (map.get(t.category_id) ?? 0) + -t.amount)
     }
     return map
