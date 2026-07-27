@@ -8,6 +8,7 @@ import Onboarding from '@/pages/Onboarding'
 import HouseholdSettings from '@/pages/HouseholdSettings'
 import Dashboard from '@/pages/Dashboard'
 import Accounts from '@/pages/Accounts'
+import AccountDetail from '@/pages/AccountDetail'
 import Transactions from '@/pages/Transactions'
 import ImportStatement from '@/pages/ImportStatement'
 import Budgets from '@/pages/Budgets'
@@ -92,6 +93,7 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/finanzas" element={<Transactions />} />
         <Route path="/finanzas/cuentas" element={<Accounts />} />
+        <Route path="/finanzas/cuentas/:id" element={<AccountDetail />} />
         <Route path="/finanzas/importar" element={<ImportStatement />} />
         <Route path="/finanzas/cuentas/conectar" element={<ConnectBank />} />
         <Route path="/finanzas/cuentas/callback" element={<ConnectBank />} />

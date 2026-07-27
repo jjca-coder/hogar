@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Landmark, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { ChevronRight, Landmark, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import {
   isLiability,
   money,
@@ -197,11 +197,10 @@ export default function Accounts() {
               </div>
               <InsetList>
                 {items.map((a) => (
-                  <button
+                  <Link
                     key={a.id}
-                    onClick={() => canWriteFinances && setEditing(a)}
-                    className="inset-row w-full text-left"
-                    disabled={!canWriteFinances}
+                    to={`/finanzas/cuentas/${a.id}`}
+                    className="inset-row w-full text-left active:bg-[var(--bg-hover)] transition-colors"
                   >
                     <span
                       className="w-10 h-10 rounded-[12px] flex items-center justify-center text-lg shrink-0"
@@ -221,7 +220,8 @@ export default function Accounts() {
                       value={money(a.current_balance)}
                       className={a.current_balance < 0 ? 'text-[var(--expense)]' : ''}
                     />
-                  </button>
+                    <ChevronRight size={16} className="text-[var(--text-quaternary)] shrink-0" />
+                  </Link>
                 ))}
               </InsetList>
             </section>
