@@ -11,7 +11,7 @@ create table public.institutions (
   country text not null default 'ES' check (country ~ '^[A-Z]{2}$'),
   bic text,
   logo_url text,
-  provider text check (provider in ('gocardless', 'tink', 'truelayer', 'plaid', 'manual')),
+  provider text check (provider in ('gocardless', 'tink', 'truelayer', 'plaid', 'enablebanking', 'manual')),
   provider_institution_id text,
   transaction_history_days int not null default 90,
   created_at timestamptz not null default now(),
