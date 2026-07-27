@@ -24,10 +24,15 @@ npm run dev
 
 ### 3. Netlify
 
-1. Sube el repo a GitHub y en Netlify: **Add new site → Import from Git**.
+Repo: <https://github.com/jjca-coder/hogar> · Proyecto Supabase: `scswiyqpnjtoyxcdyifq`
+
+1. En Netlify: **Add new site → Import an existing project → GitHub → hogar**.
 2. Netlify detecta `netlify.toml` (build `npm run build`, publish `dist`).
-3. Añade las variables de entorno `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`
-   en **Site settings → Environment variables**.
+3. **Imprescindible**: añade en **Site configuration → Environment variables** las mismas
+   `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` del `.env` local — sin ellas la web
+   desplegada arranca en la pantalla "Falta conectar Supabase" (el `.env` no está en git
+   a propósito).
+4. Cada `git push` a `main` vuelve a desplegar solo.
 
 ### 4. Primer uso
 
