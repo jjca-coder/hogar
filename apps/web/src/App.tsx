@@ -1,5 +1,4 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { CheckCircle2, Flame } from 'lucide-react'
 import { isConfigured } from '@/lib/supabase'
 import { useActiveHousehold, useSession } from '@/lib/session'
 import AppLayout from '@/components/AppLayout'
@@ -15,7 +14,9 @@ import Budgets from '@/pages/Budgets'
 import Subscriptions from '@/pages/Subscriptions'
 import { Privacy, Terms } from '@/pages/Legal'
 import ConnectBank from '@/pages/ConnectBank'
-import { Card, EmptyState } from '@/design-system/primitives'
+import Tasks from '@/pages/Tasks'
+import Habits from '@/pages/Habits'
+import { Card } from '@/design-system/primitives'
 
 function Loading() {
   return (
@@ -39,22 +40,6 @@ function NotConfigured() {
           Copia <code>apps/web/.env.example</code> a <code>apps/web/.env</code> y rellena las dos
           variables. Después reinicia el servidor.
         </p>
-      </Card>
-    </div>
-  )
-}
-
-/** Módulos que llegan en la Fase 5; la pestaña ya existe para no mover el suelo después. */
-function ComingSoon({ title, icon }: { title: string; icon: React.ReactNode }) {
-  return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <h1 className="t-title-1 mb-5">{title}</h1>
-      <Card padded={false}>
-        <EmptyState
-          icon={icon}
-          title="Todavía no está listo"
-          description="Este módulo llega en la siguiente fase. Las finanzas ya funcionan."
-        />
       </Card>
     </div>
   )
@@ -112,14 +97,8 @@ export default function App() {
         <Route path="/finanzas/cuentas/callback" element={<ConnectBank />} />
         <Route path="/finanzas/presupuesto" element={<Budgets />} />
         <Route path="/finanzas/suscripciones" element={<Subscriptions />} />
-        <Route
-          path="/tareas"
-          element={<ComingSoon title="Tareas" icon={<CheckCircle2 size={30} />} />}
-        />
-        <Route
-          path="/habitos"
-          element={<ComingSoon title="Hábitos" icon={<Flame size={30} />} />}
-        />
+        <Route path="/tareas" element={<Tasks />} />
+        <Route path="/habitos" element={<Habits />} />
         <Route path="/ajustes/hogar" element={<HouseholdSettings />} />
       </Route>
       <Route path="/design-system" element={<DesignSystem />} />
