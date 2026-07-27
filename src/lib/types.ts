@@ -89,11 +89,18 @@ export interface Task {
   done_at: string | null
 }
 
+export type Frequency = 'daily' | 'weekdays' | 'weekly' | 'monthly'
+
 export interface Habit {
   id: string
   owner: string
   name: string
   emoji: string
+  frequency: Frequency
+  /** Veces por periodo, solo para 'weekly' y 'monthly'. */
+  target_count: number
+  /** Días objetivo en ISO (1 = lunes … 7 = domingo), solo para 'weekdays'. */
+  weekdays: number[]
 }
 
 export interface HabitCheck {

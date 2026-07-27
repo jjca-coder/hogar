@@ -111,11 +111,34 @@ function buildStore(): Record<string, Row[]> {
     task('k7', 'Sacar la basura', iso(subDays(t, 1)), UID, 'none', subDays(t, 1).toISOString()),
   ]
 
+  const habit = (
+    id: string,
+    owner: string,
+    name: string,
+    emoji: string,
+    frequency: string,
+    targetCount: number,
+    weekdays: number[],
+    daysAgo: number,
+  ): Row => ({
+    id,
+    household_id: HH,
+    owner,
+    name,
+    emoji,
+    frequency,
+    target_count: targetCount,
+    weekdays,
+    archived: false,
+    created_at: subDays(t, daysAgo).toISOString(),
+  })
+
   const habits: Row[] = [
-    { id: 'b1', household_id: HH, owner: UID, name: 'Gimnasio', emoji: '💪', archived: false, created_at: subDays(t, 30).toISOString() },
-    { id: 'b2', household_id: HH, owner: UID, name: 'Leer 20 min', emoji: '📚', archived: false, created_at: subDays(t, 20).toISOString() },
-    { id: 'b3', household_id: HH, owner: PARTNER, name: 'Yoga', emoji: '🧘', archived: false, created_at: subDays(t, 25).toISOString() },
-    { id: 'b4', household_id: HH, owner: PARTNER, name: 'Beber 2L de agua', emoji: '💧', archived: false, created_at: subDays(t, 10).toISOString() },
+    habit('b1', UID, 'Gimnasio', '💪', 'weekly', 3, [1, 2, 3, 4, 5, 6, 7], 30),
+    habit('b2', UID, 'Leer 20 min', '📚', 'daily', 1, [1, 2, 3, 4, 5, 6, 7], 20),
+    habit('b5', UID, 'Revisar cuentas', '💰', 'monthly', 2, [1, 2, 3, 4, 5, 6, 7], 60),
+    habit('b3', PARTNER, 'Yoga', '🧘', 'weekdays', 1, [1, 3, 5], 25),
+    habit('b4', PARTNER, 'Beber 2L de agua', '💧', 'daily', 1, [1, 2, 3, 4, 5, 6, 7], 10),
   ]
 
   const accounts: Row[] = [
@@ -165,9 +188,20 @@ function buildStore(): Record<string, Row[]> {
   const habit_checks: Row[] = []
   const check = (habit: string, daysAgo: number) =>
     habit_checks.push({ habit_id: habit, date: iso(subDays(t, daysAgo)) })
-  ;[0, 1, 2, 3, 5, 6, 8].forEach((d) => check('b1', d))
+  // Gimnasio: lunes, miércoles y viernes de cada semana → 3 por semana cumplidas
+  for (let d = 0; d <= 40; d++) {
+    const day = subDays(t, d)
+    const isoDay = day.getDay() === 0 ? 7 : day.getDay()
+    if ([1, 3, 5].includes(isoDay)) check('b1', d)
+  }
   ;[1, 2, 4, 7].forEach((d) => check('b2', d))
-  ;[0, 1, 2, 3, 4, 5].forEach((d) => check('b3', d))
+  ;[5, 20, 35, 50].forEach((d) => check('b5', d))
+  // Yoga: solo lunes, miércoles y viernes
+  ;[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].forEach((d) => {
+    const day = subDays(t, d)
+    const isoDay = day.getDay() === 0 ? 7 : day.getDay()
+    if ([1, 3, 5].includes(isoDay)) check('b3', d)
+  })
   ;[0, 2, 3].forEach((d) => check('b4', d))
 
   return {
