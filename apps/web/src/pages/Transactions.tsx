@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { addMonths, format, isToday, isYesterday, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, Receipt, Search, Trash2, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ChevronLeft, ChevronRight, FileUp, Receipt, Search, Trash2, X } from 'lucide-react'
 import { money, sum, upperFirst, type Category, type Transaction } from '@aurora/shared'
 import {
   monthRange,
@@ -69,7 +70,20 @@ export default function Transactions() {
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-5">
       <header>
         <div className="flex items-center justify-between mb-3">
-          <h1 className="t-title-1">Movimientos</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="t-title-1">Movimientos</h1>
+            {canWriteFinances && (
+              <Link
+                to="/finanzas/importar"
+                className="w-8 h-8 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
+                aria-label="Importar extracto"
+                title="Importar extracto del banco"
+              >
+                <FileUp size={15} />
+              </Link>
+            )}
+          </div>
           <div
             className="flex items-center rounded-full border px-1"
             style={{ borderColor: 'var(--separator-opaque)' }}

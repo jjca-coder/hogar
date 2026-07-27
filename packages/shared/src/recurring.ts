@@ -64,7 +64,9 @@ function medianGap(dates: string[]): number {
   if (gaps.length === 0) return 0
   gaps.sort((a, b) => a - b)
   const mid = Math.floor(gaps.length / 2)
-  return gaps.length % 2 === 0 ? Math.round(((gaps[mid - 1] ?? 0) + (gaps[mid] ?? 0)) / 2) : (gaps[mid] ?? 0)
+  return gaps.length % 2 === 0
+    ? Math.round(((gaps[mid - 1] ?? 0) + (gaps[mid] ?? 0)) / 2)
+    : (gaps[mid] ?? 0)
 }
 
 /**

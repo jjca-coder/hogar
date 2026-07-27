@@ -34,8 +34,7 @@ export function budgetProgress(
   const day = Math.min(Math.max(dayOfPeriod, 1), daysInPeriod)
   const projected = money(Math.round((spent.amount / day) * daysInPeriod))
 
-  const status: BudgetProgress['status'] =
-    ratio >= 1 ? 'over' : ratio >= 0.8 ? 'warning' : 'ok'
+  const status: BudgetProgress['status'] = ratio >= 1 ? 'over' : ratio >= 0.8 ? 'warning' : 'ok'
 
   return {
     planned,

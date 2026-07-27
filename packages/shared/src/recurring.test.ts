@@ -90,10 +90,7 @@ describe('detectRecurring', () => {
   })
 
   it('ordena por coste anual, de mayor a menor', () => {
-    const found = detectRecurring([
-      ...series('BARATO', 2, 4, 30),
-      ...series('CARO', 50, 4, 30),
-    ])
+    const found = detectRecurring([...series('BARATO', 2, 4, 30), ...series('CARO', 50, 4, 30)])
     expect(found[0]?.name).toBe('CARO')
   })
 
