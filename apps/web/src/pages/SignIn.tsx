@@ -246,7 +246,7 @@ export default function SignIn() {
           {mode === 'signin' && (
             <button
               onClick={() => switchTo('reset')}
-              className="t-subhead text-[var(--text-tertiary)]"
+              className="t-subhead text-[var(--text-secondary)]"
             >
               He olvidado la contraseña
             </button>

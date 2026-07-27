@@ -94,8 +94,11 @@
 
   --text-primary: #1c1c1e;
   --text-secondary: #55545a;
-  --text-tertiary: #8a8a8f;
-  --text-quaternary: #b4b3b8;
+  /* Terciario cumple AA (4.5:1) sobre --bg-base: se usa en texto pequeño real,
+     no solo decorativo. Con el #8a8a8f anterior se quedaba en 3.04. */
+  --text-tertiary: #6b6a70;
+  /* Cuaternario es SOLO decorativo (iconos, separadores). Nunca texto legible. */
+  --text-quaternary: #a3a2a8;
   --text-on-accent: #ffffff;
 
   --separator: rgb(60 60 67 / 0.14);
@@ -132,8 +135,8 @@
 
   --text-primary: #f5f5f7;
   --text-secondary: #a9a9b0;
-  --text-tertiary: #79797f;
-  --text-quaternary: #54545a;
+  --text-tertiary: #86868c;
+  --text-quaternary: #5f5f66;
   --text-on-accent: #ffffff;
 
   --separator: rgb(255 255 255 / 0.1);
@@ -166,8 +169,8 @@
 
     --text-primary: #f5f5f7;
     --text-secondary: #a9a9b0;
-    --text-tertiary: #79797f;
-    --text-quaternary: #54545a;
+    --text-tertiary: #86868c;
+    --text-quaternary: #5f5f66;
 
     --separator: rgb(255 255 255 / 0.1);
     --separator-opaque: #34343a;
