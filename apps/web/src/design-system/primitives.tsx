@@ -328,6 +328,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
       role="dialog"
       aria-modal="true"
       aria-label={title}
+      onClick={onClose}
     >
       <motion.div
         className="absolute inset-0 bg-black/40"
@@ -336,12 +337,14 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
         onClick={onClose}
       />
       <motion.div
-        className="relative w-full max-w-lg max-h-[92dvh] overflow-y-auto p-5 safe-bottom
+        className="relative z-10 w-full max-w-lg max-h-[92dvh] overflow-y-auto p-5 safe-bottom
                    rounded-t-[28px] sm:rounded-[28px]"
         style={{ backgroundColor: 'var(--bg-elevated)' }}
         initial={{ y: '100%', opacity: 0.6 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 380, damping: 36 }}
+        // Sin esto, un clic dentro de la hoja podía llegar al overlay y cerrarla.
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-4 h-1 w-9 rounded-full bg-[var(--separator-opaque)] sm:hidden" />
         {title && <h2 className="t-title-3 mb-4">{title}</h2>}
