@@ -91,80 +91,74 @@ export default function Finance() {
   }
 
   return (
-    <div className="space-y-4">
-      <header className="flex items-center justify-between pt-2">
-        <h1 className="text-2xl font-extrabold tracking-tight">Finanzas</h1>
-        <div className="flex items-center bg-white border border-stone-200/80 rounded-full px-1 py-0.5">
-          <button
-            className="p-1.5 text-stone-400 hover:text-ink"
-            onClick={() => setMonth(addMonths(month, -1))}
-            aria-label="Mes anterior"
-          >
-            <ChevronLeft size={17} />
-          </button>
-          <span className="text-sm font-semibold capitalize w-24 text-center">
-            {monthLabel(month)}
-          </span>
-          <button
-            className="p-1.5 text-stone-400 hover:text-ink"
-            onClick={() => setMonth(addMonths(month, 1))}
-            aria-label="Mes siguiente"
-          >
-            <ChevronRight size={17} />
-          </button>
+    <div className="space-y-5">
+      <header className="pt-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-tight">Gastos</h1>
+          <div className="flex items-center bg-surface border border-hairline rounded-full px-1">
+            <button
+              className="p-2 text-dim active:text-bright"
+              onClick={() => setMonth(addMonths(month, -1))}
+              aria-label="Mes anterior"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-[13px] font-semibold w-[104px] text-center">
+              {upperFirst(monthLabel(month))}
+            </span>
+            <button
+              className="p-2 text-dim active:text-bright"
+              onClick={() => setMonth(addMonths(month, 1))}
+              aria-label="Mes siguiente"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
+        <p className="text-[40px] leading-[1.1] font-bold num mt-3">{eur(spent)}</p>
+        <p className="text-dim text-sm mt-1">
+          Ingresos <span className="text-up font-semibold num">{eur(income)}</span>
+        </p>
       </header>
 
-      <div className="card p-5">
-        <div className="grid grid-cols-2">
-          <div>
-            <p className="section-title">Gastos</p>
-            <p className="text-2xl font-extrabold tracking-tight tabular-nums mt-1">{eur(spent)}</p>
-          </div>
-          <div className="border-l border-stone-100 pl-5">
-            <p className="section-title">Ingresos</p>
-            <p className="text-2xl font-extrabold tracking-tight tabular-nums mt-1 text-emerald-700">
-              {eur(income)}
-            </p>
-          </div>
+      {partner && expenses.some((t) => t.is_shared) && (
+        <div className="card p-4 flex items-center gap-3">
+          <Users size={16} className="text-faint shrink-0" />
+          <p className="text-sm">
+            {balance === 0 ? (
+              <span className="text-dim">Compartidos: en paz</span>
+            ) : balance > 0 ? (
+              <>
+                <span className="text-dim">{partner.name} te debe </span>
+                <b className="text-up num">{eur(balance)}</b>
+              </>
+            ) : (
+              <>
+                <span className="text-dim">Debes a {partner.name} </span>
+                <b className="text-down num">{eur(-balance)}</b>
+              </>
+            )}
+          </p>
         </div>
-        {partner && (
-          <div className="flex items-center gap-2 border-t border-stone-100 mt-4 pt-3.5">
-            <Users size={15} className="text-stone-400 shrink-0" />
-            <p className="text-sm">
-              {balance === 0 ? (
-                <span className="text-stone-500">Compartidos: en paz 🤝</span>
-              ) : balance > 0 ? (
-                <span className="font-semibold text-emerald-700">
-                  {partner.name} te debe {eur(balance)}
-                </span>
-              ) : (
-                <span className="font-semibold text-rose-600">
-                  Debes {eur(-balance)} a {partner.name}
-                </span>
-              )}
-            </p>
-          </div>
-        )}
-      </div>
+      )}
 
       {byCategory.length > 0 && (
         <section className="card p-5">
-          <h2 className="section-title mb-4">Por categorías</h2>
-          <div className="space-y-3.5">
+          <h2 className="eyebrow mb-4">En qué se va</h2>
+          <div className="space-y-4">
             {byCategory.map((c) => (
-              <div key={c.id} title={`${c.name}: ${eur(c.sum)}`}>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-base leading-none">{c.emoji}</span>
+              <div key={c.id}>
+                <div className="flex items-baseline gap-2.5">
+                  <span className="text-[15px] leading-none">{c.emoji}</span>
                   <span className="flex-1 text-sm font-medium truncate">{c.name}</span>
-                  <span className="text-sm font-bold tabular-nums">{eur(c.sum)}</span>
-                  <span className="text-xs text-stone-400 tabular-nums w-9 text-right">
+                  <span className="text-sm font-bold num">{eur(c.sum)}</span>
+                  <span className="text-xs text-faint num w-9 text-right">
                     {Math.round((c.sum / spent) * 100)}%
                   </span>
                 </div>
-                <div className="h-1.5 bg-stone-100 rounded-full mt-1.5 overflow-hidden">
+                <div className="h-1 bg-raised rounded-full mt-2 overflow-hidden">
                   <div
-                    className="h-full bg-ink rounded-full transition-[width] duration-300"
+                    className="h-full bg-bright rounded-full transition-[width] duration-500"
                     style={{ width: `${Math.max((c.sum / byCategory[0].sum) * 100, 2)}%` }}
                   />
                 </div>
@@ -175,52 +169,51 @@ export default function Finance() {
       )}
 
       {byDay.length === 0 ? (
-        <div className="card p-8 text-center text-stone-400">
-          <p className="text-3xl mb-2">🧾</p>
-          <p>Sin movimientos este mes.</p>
+        <div className="card p-10 text-center text-faint">
+          <p className="text-sm">Sin movimientos este mes</p>
         </div>
       ) : (
         byDay.map(([date, list]) => (
           <section key={date}>
-            <h3 className="section-title mb-2">{upperFirst(dayLabel(date))}</h3>
-            <div className="card divide-y divide-stone-100">
+            <h3 className="eyebrow mb-2 px-1">{upperFirst(dayLabel(date))}</h3>
+            <div className="card divide-hair overflow-hidden">
               {list.map((t) => {
                 const cat = t.category_id ? catById.get(t.category_id) : undefined
                 const payer = memberById.get(t.paid_by)
                 return (
-                  <div key={t.id} className="flex items-center gap-3 p-3.5">
-                    <span className="emoji-tile">{cat?.emoji ?? '💸'}</span>
+                  <div key={t.id} className="flex items-center gap-3 p-4">
+                    <span className="tile">{cat?.emoji ?? '💸'}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-[15px] truncate">
+                      <p className="font-medium truncate">
                         {t.description || cat?.name || 'Movimiento'}
                       </p>
-                      <p className="text-xs text-stone-400 flex items-center gap-1.5 mt-0.5">
+                      <p className="text-xs text-faint flex items-center gap-1.5 mt-1">
                         {payer && (
                           <span
-                            className="inline-flex w-4 h-4 rounded-full text-white text-[10px] font-bold items-center justify-center"
+                            className="inline-flex w-4 h-4 rounded-full text-white text-[9px] font-bold items-center justify-center"
                             style={{ backgroundColor: payer.color }}
                           >
                             {initial(payer.name)}
                           </span>
                         )}
                         {cat?.name}
-                        {t.is_shared && <Users size={12} className="inline" />}
+                        {t.is_shared && <Users size={11} />}
                       </p>
                     </div>
                     <p
-                      className={`font-bold tabular-nums whitespace-nowrap ${
-                        t.kind === 'expense' ? 'text-ink' : 'text-emerald-700'
+                      className={`font-bold num whitespace-nowrap ${
+                        t.kind === 'income' ? 'text-up' : ''
                       }`}
                     >
                       {t.kind === 'expense' ? '−' : '+'}
                       {eur(t.amount_cents)}
                     </p>
                     <button
-                      className="p-1.5 text-stone-300 hover:text-rose-500"
+                      className="p-1 text-faint active:text-down"
                       onClick={() => remove(t)}
                       aria-label="Borrar"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={15} />
                     </button>
                   </div>
                 )
@@ -299,16 +292,16 @@ function AddTransaction({
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="modal-sheet">
+    <div className="sheet-overlay" onClick={onClose}>
+      <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="sheet">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">Nuevo movimiento</h2>
-          <button type="button" className="p-1.5 text-stone-400" onClick={onClose} aria-label="Cerrar">
+          <h2 className="text-xl font-bold">Nuevo movimiento</h2>
+          <button type="button" className="p-1.5 text-dim" onClick={onClose} aria-label="Cerrar">
             <X size={20} />
           </button>
         </div>
 
-        <div className="seg grid-cols-2">
+        <div className="grid grid-cols-2 gap-2 bg-raised rounded-2xl p-1">
           {(
             [
               ['expense', 'Gasto'],
@@ -319,7 +312,9 @@ function AddTransaction({
               type="button"
               key={k}
               onClick={() => setKind(k)}
-              className={`seg-item ${kind === k ? 'seg-item-active' : ''}`}
+              className={`py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                kind === k ? 'bg-bright text-void' : 'text-dim'
+              }`}
             >
               {label}
             </button>
@@ -327,16 +322,21 @@ function AddTransaction({
         </div>
 
         <div>
-          <label className="label">Importe (€)</label>
-          <input
-            className="input text-2xl font-bold tabular-nums"
-            inputMode="decimal"
-            placeholder="0,00"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            autoFocus
-            required
-          />
+          <label className="label">Importe</label>
+          <div className="relative">
+            <input
+              className="input text-3xl font-bold num pr-10"
+              inputMode="decimal"
+              placeholder="0,00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              autoFocus
+              required
+            />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-faint">
+              €
+            </span>
+          </div>
         </div>
 
         <div>
@@ -351,13 +351,13 @@ function AddTransaction({
 
         <div>
           <label className="label">Categoría</label>
-          <div className="grid grid-cols-3 gap-1.5 max-h-44 overflow-y-auto">
+          <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
             {kindCats.map((c) => (
               <button
                 type="button"
                 key={c.id}
                 onClick={() => setCategoryId(c.id)}
-                className={`chip !px-2 text-[13px] truncate ${categoryId === c.id ? 'chip-active' : ''}`}
+                className={`chip ${categoryId === c.id ? 'chip-on' : ''}`}
               >
                 {c.emoji} {c.name}
               </button>
@@ -368,17 +368,23 @@ function AddTransaction({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">Fecha</label>
-            <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+            <input
+              className="input !py-3"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
           </div>
           <div>
             <label className="label">Pagado por</label>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="flex gap-2">
               {members.map((m) => (
                 <button
                   type="button"
                   key={m.id}
                   onClick={() => setPaidBy(m.id)}
-                  className={`chip !px-2 truncate ${paidBy === m.id ? 'chip-active' : ''}`}
+                  className={`chip flex-1 truncate ${paidBy === m.id ? 'chip-on' : ''}`}
                 >
                   {m.id === uid ? 'Yo' : m.name}
                 </button>
@@ -388,18 +394,27 @@ function AddTransaction({
         </div>
 
         {kind === 'expense' && (
-          <label className="flex items-center gap-3 py-1 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isShared}
-              onChange={(e) => setIsShared(e.target.checked)}
-              className="w-5 h-5 accent-stone-900"
-            />
+          <button
+            type="button"
+            onClick={() => setIsShared(!isShared)}
+            className="flex items-center gap-3 w-full text-left"
+          >
+            <span
+              className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${
+                isShared ? 'bg-bright' : 'bg-raised'
+              }`}
+            >
+              <span
+                className={`absolute top-1 w-4 h-4 rounded-full transition-all ${
+                  isShared ? 'left-6 bg-void' : 'left-1 bg-faint'
+                }`}
+              />
+            </span>
             <span className="font-medium text-[15px]">Gasto compartido (a medias)</span>
-          </label>
+          </button>
         )}
 
-        {error && <p className="text-sm text-rose-600">{error}</p>}
+        {error && <p className="text-sm text-down">{error}</p>}
 
         <button className="btn-primary w-full" disabled={busy}>
           {busy ? 'Guardando…' : 'Guardar'}

@@ -4,8 +4,8 @@
   "description": "Finanzas, tareas y hábitos de casa",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f7f5f1",
-  "theme_color": "#1c1917",
+  "background_color": "#0a0a0b",
+  "theme_color": "#0a0a0b",
   "lang": "es",
   "icons": [
     {

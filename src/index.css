@@ -1,69 +1,117 @@
 @import "tailwindcss";
 
 @theme {
-  --color-paper: #f7f5f1;
-  --color-ink: #1c1917;
+  /* Superficies: negro con un punto de calidez, no azulado */
+  --color-void: #0a0a0b;
+  --color-surface: #141416;
+  --color-raised: #1d1d20;
+  --color-hairline: #2a2a2e;
+
+  /* Texto */
+  --color-bright: #fafafa;
+  --color-dim: #8b8b93;
+  --color-faint: #5c5c63;
+
+  /* Semántica: solo sube/baja, nunca decorativo */
+  --color-up: #34d399;
+  --color-down: #fb7185;
+
+  /* Tipos de cuenta — paleta validada para superficie oscura */
+  --color-acc-bank: #3987e5;
+  --color-acc-savings: #199e70;
+  --color-acc-invest: #c98500;
+  --color-acc-cash: #9085e9;
+  --color-acc-debt: #e66767;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
+    system-ui, "Segoe UI", Roboto, sans-serif;
 }
 
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
+    color-scheme: dark;
   }
   body {
-    @apply bg-paper text-ink antialiased;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    @apply bg-void text-bright antialiased;
+    font-family: var(--font-sans);
   }
   input, select, textarea {
-    font-size: 16px; /* evita el zoom automático de iOS al enfocar */
+    font-size: 16px; /* evita el zoom de iOS al enfocar */
+  }
+  /* Los importes siempre alineados y apretados */
+  .num {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
   }
 }
 
 @layer components {
   .card {
-    @apply bg-white rounded-[20px] border border-stone-200/70;
-    box-shadow: 0 1px 2px rgb(28 25 23 / 0.03);
+    @apply bg-surface rounded-3xl border border-hairline/70;
   }
+  .card-flat {
+    @apply bg-surface rounded-3xl;
+  }
+
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors disabled:opacity-40 disabled:pointer-events-none bg-ink text-white hover:bg-stone-800 active:bg-stone-700 px-4 py-3;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl font-semibold
+           transition-all disabled:opacity-30 disabled:pointer-events-none
+           bg-bright text-void px-5 py-3.5 active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl font-semibold
+           transition-all disabled:opacity-30 disabled:pointer-events-none
+           bg-raised text-bright px-5 py-3.5 active:scale-[0.98];
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors disabled:opacity-40 disabled:pointer-events-none text-stone-500 hover:bg-stone-100 px-4 py-3;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl font-medium
+           transition-colors text-dim hover:text-bright px-4 py-3;
   }
+
   .input {
-    @apply w-full rounded-xl border border-stone-200 bg-white px-3.5 py-3 outline-none focus:border-ink focus:ring-2 focus:ring-ink/10 placeholder:text-stone-400;
+    @apply w-full rounded-2xl border border-hairline bg-raised px-4 py-3.5
+           text-bright outline-none transition-colors
+           focus:border-bright/40 placeholder:text-faint;
   }
   .label {
-    @apply block text-[13px] font-semibold text-stone-500 mb-1.5;
+    @apply block text-[13px] font-medium text-dim mb-2;
   }
-  .section-title {
-    @apply text-[11px] font-bold uppercase tracking-[0.12em] text-stone-400;
+
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-faint;
   }
-  .fab {
-    @apply fixed bottom-24 right-5 w-14 h-14 rounded-full bg-ink text-white flex items-center justify-center active:scale-95 transition-transform z-40;
-    box-shadow: 0 8px 24px rgb(28 25 23 / 0.28);
-  }
-  .emoji-tile {
-    @apply w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center text-xl shrink-0;
-  }
-  .modal-overlay {
-    @apply fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50;
-  }
-  .modal-sheet {
-    @apply bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg p-5 space-y-4 max-h-[90dvh] overflow-y-auto;
-  }
-  .seg {
-    @apply grid gap-1 bg-stone-100 rounded-xl p-1;
-  }
-  .seg-item {
-    @apply py-2 rounded-lg text-sm font-semibold transition-colors text-stone-500;
-  }
-  .seg-item-active {
-    @apply bg-white shadow-sm text-ink;
-  }
+
   .chip {
-    @apply py-2.5 px-3 rounded-xl border font-medium text-sm transition-colors border-stone-200 text-stone-500 hover:border-stone-300;
+    @apply px-3.5 py-2 rounded-full border border-hairline text-[13px] font-medium
+           text-dim transition-all active:scale-[0.97];
   }
-  .chip-active {
-    @apply border-ink bg-ink text-white hover:border-ink;
+  .chip-on {
+    @apply bg-bright border-bright text-void;
+  }
+
+  .fab {
+    @apply fixed right-5 w-14 h-14 rounded-full bg-bright text-void
+           flex items-center justify-center active:scale-95 transition-transform z-40;
+    bottom: calc(6.5rem + env(safe-area-inset-bottom));
+    box-shadow: 0 8px 32px rgb(0 0 0 / 0.6);
+  }
+
+  .sheet-overlay {
+    @apply fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center
+           justify-center z-50;
+  }
+  .sheet {
+    @apply bg-surface border-t sm:border border-hairline rounded-t-[28px] sm:rounded-[28px]
+           w-full max-w-lg p-5 space-y-5 max-h-[92dvh] overflow-y-auto;
+    padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
+  }
+
+  .tile {
+    @apply w-11 h-11 rounded-2xl bg-raised flex items-center justify-center
+           text-xl shrink-0;
+  }
+  .divide-hair > * + * {
+    border-top: 1px solid var(--color-hairline);
   }
 }

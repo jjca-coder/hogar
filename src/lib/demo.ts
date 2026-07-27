@@ -118,6 +118,50 @@ function buildStore(): Record<string, Row[]> {
     { id: 'b4', household_id: HH, owner: PARTNER, name: 'Beber 2L de agua', emoji: '💧', archived: false, created_at: subDays(t, 10).toISOString() },
   ]
 
+  const accounts: Row[] = [
+    ['a1', 'Cuenta nómina', 'checking', 'BBVA', 3240.55, 0],
+    ['a2', 'Cuenta común', 'checking', 'Santander', 1180.2, 1],
+    ['a3', 'Ahorro vivienda', 'savings', 'Openbank', 18500.0, 2],
+    ['a4', 'Fondo indexado', 'investment', 'MyInvestor', 12760.4, 3],
+    ['a5', 'Efectivo', 'cash', null, 180.0, 4],
+    ['a6', 'Visa Santander', 'card', 'Santander', -640.3, 5],
+  ].map(([id, name, kind, institution, eurAmount, sort]) => ({
+    id,
+    household_id: HH,
+    name,
+    kind,
+    institution,
+    balance_cents: Math.round((eurAmount as number) * 100),
+    currency: 'EUR',
+    owner: null,
+    include_in_net_worth: true,
+    archived: false,
+    sort,
+    provider: null,
+    external_id: null,
+    last_synced_at: null,
+    created_at: subDays(t, 120).toISOString(),
+  }))
+
+  // Histórico mensual con una progresión creíble (el patrimonio sube poco a poco)
+  const balance_snapshots: Row[] = []
+  const growth: Record<string, number> = {
+    a1: 0.93, a2: 0.88, a3: 0.72, a4: 0.66, a5: 1.1, a6: 1.35,
+  }
+  for (let m = 12; m >= 0; m--) {
+    const date = iso(subDays(t, m * 30))
+    for (const acc of accounts) {
+      const now = acc.balance_cents as number
+      const factor = 1 - (1 - growth[acc.id as string]) * (m / 12)
+      const wobble = 1 + Math.sin(m * 1.7 + (acc.id as string).charCodeAt(1)) * 0.012
+      balance_snapshots.push({
+        account_id: acc.id,
+        date,
+        balance_cents: Math.round(now * factor * wobble),
+      })
+    }
+  }
+
   const habit_checks: Row[] = []
   const check = (habit: string, daysAgo: number) =>
     habit_checks.push({ habit_id: habit, date: iso(subDays(t, daysAgo)) })
@@ -142,6 +186,8 @@ function buildStore(): Record<string, Row[]> {
     tasks,
     habits,
     habit_checks,
+    accounts,
+    balance_snapshots,
   }
 }
 

@@ -2,16 +2,17 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { format, startOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Settings, LogOut, Copy, Check, ChevronRight } from 'lucide-react'
+import { ArrowUpRight, ArrowDownRight, Check, ChevronRight, Copy, LogOut, Settings } from 'lucide-react'
 import { sb } from '../lib/supabase'
 import { useApp } from '../context/AppContext'
-import { eur, todayISO, upperFirst } from '../lib/format'
-import type { Habit, HabitCheck, Task, Transaction } from '../lib/types'
+import { eur, eurWhole, todayISO, upperFirst, initial } from '../lib/format'
+import type { Account, Habit, HabitCheck, Task, Transaction } from '../lib/types'
 
 export default function Dashboard() {
   const { session, profile, household, partner } = useApp()
   const uid = session!.user.id
   const [txs, setTxs] = useState<Transaction[]>([])
+  const [accounts, setAccounts] = useState<Account[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [habits, setHabits] = useState<Habit[]>([])
   const [checks, setChecks] = useState<HabitCheck[]>([])
@@ -23,12 +24,8 @@ export default function Dashboard() {
   const load = async () => {
     if (!household) return
     const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd')
-    const [t1, t2, t3, t4] = await Promise.all([
-      sb()
-        .from('transactions')
-        .select('*')
-        .eq('household_id', household.id)
-        .gte('date', monthStart),
+    const [t1, t2, t3, t4, t5] = await Promise.all([
+      sb().from('transactions').select('*').eq('household_id', household.id).gte('date', monthStart),
       sb()
         .from('tasks')
         .select('*')
@@ -39,26 +36,34 @@ export default function Dashboard() {
         .order('due_date'),
       sb().from('habits').select('*').eq('household_id', household.id).eq('archived', false),
       sb().from('habit_checks').select('*').eq('date', today),
+      sb()
+        .from('accounts')
+        .select('*')
+        .eq('household_id', household.id)
+        .eq('archived', false)
+        .eq('include_in_net_worth', true),
     ])
     setTxs((t1.data as Transaction[]) ?? [])
     setTasks((t2.data as Task[]) ?? [])
     setHabits((t3.data as Habit[]) ?? [])
     setChecks((t4.data as HabitCheck[]) ?? [])
+    setAccounts((t5.data as Account[]) ?? []) // vacío si aún falta la migración de cuentas
   }
 
   useEffect(() => {
     load()
   }, [household?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const spent = txs
-    .filter((t) => t.kind === 'expense')
-    .reduce((s, t) => s + t.amount_cents, 0)
+  const netWorth = accounts.reduce((s, a) => s + a.balance_cents, 0)
+  const expenses = txs.filter((t) => t.kind === 'expense')
+  const spent = expenses.reduce((s, t) => s + t.amount_cents, 0)
+  const income = txs.filter((t) => t.kind === 'income').reduce((s, t) => s + t.amount_cents, 0)
 
-  const sharedByMe = txs
-    .filter((t) => t.kind === 'expense' && t.is_shared && t.paid_by === uid)
+  const sharedByMe = expenses
+    .filter((t) => t.is_shared && t.paid_by === uid)
     .reduce((s, t) => s + t.amount_cents, 0)
-  const sharedByPartner = txs
-    .filter((t) => t.kind === 'expense' && t.is_shared && t.paid_by !== uid)
+  const sharedByPartner = expenses
+    .filter((t) => t.is_shared && t.paid_by !== uid)
     .reduce((s, t) => s + t.amount_cents, 0)
   const balance = Math.round((sharedByMe - sharedByPartner) / 2)
 
@@ -69,6 +74,7 @@ export default function Dashboard() {
 
   const myHabits = habits.filter((h) => h.owner === uid)
   const isChecked = (h: Habit) => checks.some((c) => c.habit_id === h.id)
+  const doneCount = myHabits.filter(isChecked).length
 
   const toggleHabit = async (h: Habit) => {
     if (isChecked(h)) {
@@ -87,69 +93,100 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-4">
-      <header className="flex items-start justify-between pt-2">
+    <div className="space-y-5">
+      <header className="flex items-center justify-between pt-4">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">Hola, {profile?.name}</h1>
-          <p className="text-stone-500 text-sm mt-0.5">
-            {upperFirst(format(new Date(), "EEEE d 'de' LLLL", { locale: es }))}
-          </p>
+          <p className="text-dim text-sm">{upperFirst(format(new Date(), "EEEE d 'de' LLLL", { locale: es }))}</p>
+          <h1 className="text-2xl font-bold tracking-tight mt-0.5">Hola, {profile?.name}</h1>
         </div>
         <button
-          className="p-2 -mr-1 text-stone-400 hover:text-ink transition-colors"
+          className="w-10 h-10 rounded-full bg-raised flex items-center justify-center text-dim active:scale-95 transition-transform"
           onClick={() => setShowSettings(true)}
           aria-label="Ajustes"
         >
-          <Settings size={21} />
+          <Settings size={18} />
         </button>
       </header>
 
-      <Link to="/finanzas" className="card block p-5">
+      <Link to="/patrimonio" className="card block p-5 active:scale-[0.99] transition-transform">
         <div className="flex items-center justify-between">
-          <p className="section-title">
-            Gastado en {format(new Date(), 'LLLL', { locale: es })}
-          </p>
-          <ChevronRight size={16} className="text-stone-300" />
+          <p className="eyebrow">Patrimonio neto</p>
+          <ChevronRight size={16} className="text-faint" />
         </div>
-        <p className="text-4xl font-extrabold tracking-tight tabular-nums mt-2">{eur(spent)}</p>
-        {partner && (
-          <p className="text-sm mt-2.5">
-            {balance === 0 ? (
-              <span className="text-stone-500">Gastos compartidos: en paz 🤝</span>
-            ) : balance > 0 ? (
-              <span className="text-emerald-700 font-semibold">
-                {partner.name} te debe {eur(balance)}
-              </span>
-            ) : (
-              <span className="text-rose-600 font-semibold">
-                Debes {eur(-balance)} a {partner.name}
-              </span>
-            )}
-          </p>
+        <p className="text-[38px] leading-[1.1] font-bold num mt-2">
+          {accounts.length ? eurWhole(netWorth) : '—'}
+        </p>
+        {accounts.length === 0 && (
+          <p className="text-dim text-sm mt-1.5">Añade tus cuentas para verlo</p>
         )}
       </Link>
 
+      <div className="grid grid-cols-2 gap-3">
+        <Link to="/finanzas" className="card p-4 active:scale-[0.98] transition-transform">
+          <div className="flex items-center gap-1 text-down">
+            <ArrowDownRight size={14} />
+            <p className="eyebrow !text-down">Gastos</p>
+          </div>
+          <p className="text-xl font-bold num mt-1.5">{eur(spent)}</p>
+          <p className="text-[11px] text-faint mt-0.5">este mes</p>
+        </Link>
+        <Link to="/finanzas" className="card p-4 active:scale-[0.98] transition-transform">
+          <div className="flex items-center gap-1 text-up">
+            <ArrowUpRight size={14} />
+            <p className="eyebrow !text-up">Ingresos</p>
+          </div>
+          <p className="text-xl font-bold num mt-1.5">{eur(income)}</p>
+          <p className="text-[11px] text-faint mt-0.5">este mes</p>
+        </Link>
+      </div>
+
+      {partner && (
+        <div className="card p-4 flex items-center gap-3">
+          <span
+            className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+            style={{ backgroundColor: partner.color }}
+          >
+            {initial(partner.name)}
+          </span>
+          <p className="text-sm flex-1">
+            {balance === 0 ? (
+              <span className="text-dim">Con {partner.name} estáis en paz</span>
+            ) : balance > 0 ? (
+              <>
+                <span className="text-dim">{partner.name} te debe </span>
+                <b className="text-up num">{eur(balance)}</b>
+              </>
+            ) : (
+              <>
+                <span className="text-dim">Debes a {partner.name} </span>
+                <b className="text-down num">{eur(-balance)}</b>
+              </>
+            )}
+          </p>
+        </div>
+      )}
+
       <section className="card p-5">
-        <div className="flex items-center justify-between mb-3.5">
-          <h2 className="section-title">Tareas para hoy</h2>
-          <Link to="/tareas" className="text-xs font-semibold text-stone-400 hover:text-ink">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="eyebrow">Tareas para hoy</h2>
+          <Link to="/tareas" className="text-xs font-semibold text-dim">
             Ver todas
           </Link>
         </div>
         {tasks.length === 0 ? (
-          <p className="text-stone-400 text-sm">Nada pendiente. 🌴</p>
+          <p className="text-faint text-sm">Nada pendiente hoy</p>
         ) : (
-          <ul className="space-y-2.5">
-            {tasks.slice(0, 5).map((t) => (
+          <ul className="space-y-3">
+            {tasks.slice(0, 4).map((t) => (
               <li key={t.id} className="flex items-center gap-3">
                 <button
                   onClick={() => toggleTask(t)}
-                  className="w-[22px] h-[22px] rounded-full border-2 border-stone-300 hover:border-ink shrink-0 transition-colors"
+                  className="w-[22px] h-[22px] rounded-full border-2 border-hairline hover:border-bright shrink-0 transition-colors"
                   aria-label={`Completar ${t.title}`}
                 />
                 <span className="flex-1 text-[15px]">{t.title}</span>
                 {t.due_date && t.due_date < today && (
-                  <span className="text-[11px] font-bold text-rose-500 uppercase tracking-wide">
+                  <span className="text-[10px] font-bold text-down uppercase tracking-wider">
                     atrasada
                   </span>
                 )}
@@ -160,14 +197,16 @@ export default function Dashboard() {
       </section>
 
       <section className="card p-5">
-        <div className="flex items-center justify-between mb-3.5">
-          <h2 className="section-title">Mis hábitos de hoy</h2>
-          <Link to="/habitos" className="text-xs font-semibold text-stone-400 hover:text-ink">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="eyebrow">
+            Mis hábitos {myHabits.length > 0 && `· ${doneCount}/${myHabits.length}`}
+          </h2>
+          <Link to="/habitos" className="text-xs font-semibold text-dim">
             Ver todos
           </Link>
         </div>
         {myHabits.length === 0 ? (
-          <p className="text-stone-400 text-sm">Aún no tienes hábitos. Crea el primero.</p>
+          <p className="text-faint text-sm">Aún no tienes hábitos</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {myHabits.map((h) => {
@@ -176,10 +215,8 @@ export default function Dashboard() {
                 <button
                   key={h.id}
                   onClick={() => toggleHabit(h)}
-                  className={`px-3.5 py-2 rounded-full border text-sm font-medium transition-colors ${
-                    done
-                      ? 'bg-ink border-ink text-white'
-                      : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'
+                  className={`px-3.5 py-2 rounded-full border text-sm font-medium transition-all active:scale-95 ${
+                    done ? 'bg-bright border-bright text-void' : 'border-hairline text-dim'
                   }`}
                 >
                   {h.emoji} {h.name}
@@ -191,25 +228,28 @@ export default function Dashboard() {
       </section>
 
       {showSettings && (
-        <div className="modal-overlay" onClick={() => setShowSettings(false)}>
-          <div className="modal-sheet" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold">{household?.name}</h2>
+        <div className="sheet-overlay" onClick={() => setShowSettings(false)}>
+          <div className="sheet" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold">{household?.name}</h2>
             <div>
-              <p className="text-sm text-stone-500 mb-1.5">Código de invitación para tu pareja</p>
+              <p className="label">Código de invitación</p>
               <button
                 onClick={copyCode}
-                className="w-full flex items-center justify-center gap-2 bg-stone-100 rounded-xl py-3 text-xl font-mono font-bold tracking-[0.3em]"
+                className="w-full flex items-center justify-center gap-3 bg-raised rounded-2xl py-4 text-2xl font-bold tracking-[0.3em] num"
               >
                 {household?.invite_code}
                 {copied ? (
-                  <Check size={18} className="text-emerald-600" />
+                  <Check size={18} className="text-up" />
                 ) : (
-                  <Copy size={18} className="text-stone-400" />
+                  <Copy size={18} className="text-faint" />
                 )}
               </button>
+              <p className="text-xs text-faint mt-2">
+                Compártelo para que se una desde su cuenta.
+              </p>
             </div>
-            <button className="btn-ghost w-full text-rose-600" onClick={() => sb().auth.signOut()}>
-              <LogOut size={18} /> Cerrar sesión
+            <button className="btn-ghost w-full !text-down" onClick={() => sb().auth.signOut()}>
+              <LogOut size={16} /> Cerrar sesión
             </button>
           </div>
         </div>

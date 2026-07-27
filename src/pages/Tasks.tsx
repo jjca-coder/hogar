@@ -55,7 +55,7 @@ export default function Tasks() {
   const done = tasks
     .filter((t) => t.done_at)
     .sort((a, b) => (b.done_at! < a.done_at! ? -1 : 1))
-    .slice(0, 10)
+    .slice(0, 8)
 
   const toggle = async (t: Task) => {
     if (t.done_at) {
@@ -86,31 +86,31 @@ export default function Tasks() {
     const assignee = t.assigned_to ? memberById.get(t.assigned_to) : null
     const isDone = Boolean(t.done_at)
     return (
-      <div className="flex items-center gap-3 p-3.5">
+      <div className="flex items-center gap-3 p-4">
         <button
           onClick={() => toggle(t)}
-          className={`w-[22px] h-[22px] rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
-            isDone ? 'bg-ink border-ink text-white' : 'border-stone-300 hover:border-ink'
+          className={`w-[22px] h-[22px] rounded-full border-2 shrink-0 flex items-center justify-center transition-all active:scale-90 ${
+            isDone ? 'bg-bright border-bright text-void' : 'border-hairline hover:border-bright'
           }`}
           aria-label={isDone ? 'Desmarcar' : 'Completar'}
         >
           {isDone && <Check size={13} strokeWidth={3.5} />}
         </button>
         <div className="flex-1 min-w-0">
-          <p className={`font-medium text-[15px] truncate ${isDone ? 'line-through text-stone-400' : ''}`}>
+          <p className={`font-medium truncate ${isDone ? 'line-through text-faint' : ''}`}>
             {t.title}
           </p>
           {(t.due_date || t.recurrence !== 'none' || assignee) && (
-            <p className="text-xs text-stone-400 flex items-center gap-1.5 mt-0.5">
+            <p className="text-xs text-faint flex items-center gap-1.5 mt-1">
               {t.due_date && (
-                <span className={!isDone && t.due_date < today ? 'text-rose-500 font-semibold' : ''}>
+                <span className={!isDone && t.due_date < today ? 'text-down font-semibold' : ''}>
                   {shortDay(t.due_date)}
                 </span>
               )}
-              {t.recurrence !== 'none' && <Repeat size={12} />}
+              {t.recurrence !== 'none' && <Repeat size={11} />}
               {assignee && (
                 <span
-                  className="inline-flex w-4 h-4 rounded-full text-white text-[10px] font-bold items-center justify-center"
+                  className="inline-flex w-4 h-4 rounded-full text-white text-[9px] font-bold items-center justify-center"
                   style={{ backgroundColor: assignee.color }}
                   title={assignee.name}
                 >
@@ -121,11 +121,11 @@ export default function Tasks() {
           )}
         </div>
         <button
-          className="p-1.5 text-stone-300 hover:text-rose-500"
+          className="p-1 text-faint active:text-down"
           onClick={() => remove(t)}
           aria-label="Borrar"
         >
-          <Trash2 size={16} />
+          <Trash2 size={15} />
         </button>
       </div>
     )
@@ -134,8 +134,8 @@ export default function Tasks() {
   const Section = ({ title, list, tone }: { title: string; list: Task[]; tone?: string }) =>
     list.length === 0 ? null : (
       <section>
-        <h3 className={`section-title mb-2 ${tone ?? ''}`}>{title}</h3>
-        <div className="card divide-y divide-stone-100">
+        <h3 className={`eyebrow mb-2 px-1 ${tone ?? ''}`}>{title}</h3>
+        <div className="card divide-hair overflow-hidden">
           {list.map((t) => (
             <TaskItem key={t.id} t={t} />
           ))}
@@ -144,10 +144,10 @@ export default function Tasks() {
     )
 
   return (
-    <div className="space-y-4">
-      <header className="pt-2">
-        <h1 className="text-2xl font-extrabold tracking-tight">Tareas</h1>
-        <p className="text-stone-500 text-sm mt-0.5">
+    <div className="space-y-5">
+      <header className="pt-4">
+        <h1 className="text-2xl font-bold tracking-tight">Tareas</h1>
+        <p className="text-dim text-sm mt-0.5">
           {pending.length === 0
             ? 'Todo al día'
             : `${pending.length} ${pending.length === 1 ? 'pendiente' : 'pendientes'}`}
@@ -155,14 +155,14 @@ export default function Tasks() {
       </header>
 
       {pending.length === 0 && (
-        <div className="card p-8 text-center text-stone-400">
-          <p className="text-3xl mb-2">🧹</p>
-          <p>Todo hecho. ¡A disfrutar!</p>
+        <div className="card p-10 text-center">
+          <p className="text-3xl mb-3">🧹</p>
+          <p className="text-dim text-sm">Todo hecho. ¡A disfrutar!</p>
         </div>
       )}
 
-      <Section title="Atrasadas" list={overdue} tone="!text-rose-500" />
-      <Section title="Hoy" list={dueToday} tone="!text-ink" />
+      <Section title="Atrasadas" list={overdue} tone="!text-down" />
+      <Section title="Hoy" list={dueToday} tone="!text-bright" />
       <Section title="Próximas" list={upcoming} />
       <Section title="Algún día" list={someday} />
       <Section title="Hechas" list={done} />
@@ -210,11 +210,11 @@ function AddTask({ onClose, onSaved, uid }: { onClose: () => void; onSaved: () =
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="modal-sheet">
+    <div className="sheet-overlay" onClick={onClose}>
+      <form onSubmit={submit} onClick={(e) => e.stopPropagation()} className="sheet">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">Nueva tarea</h2>
-          <button type="button" className="p-1.5 text-stone-400" onClick={onClose} aria-label="Cerrar">
+          <h2 className="text-xl font-bold">Nueva tarea</h2>
+          <button type="button" className="p-1.5 text-dim" onClick={onClose} aria-label="Cerrar">
             <X size={20} />
           </button>
         </div>
@@ -233,11 +233,11 @@ function AddTask({ onClose, onSaved, uid }: { onClose: () => void; onSaved: () =
 
         <div>
           <label className="label">¿Quién?</label>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="flex gap-2">
             <button
               type="button"
               onClick={() => setAssignedTo('')}
-              className={`chip !px-2 ${assignedTo === '' ? 'chip-active' : ''}`}
+              className={`chip flex-1 ${assignedTo === '' ? 'chip-on' : ''}`}
             >
               Cualquiera
             </button>
@@ -246,7 +246,7 @@ function AddTask({ onClose, onSaved, uid }: { onClose: () => void; onSaved: () =
                 type="button"
                 key={m.id}
                 onClick={() => setAssignedTo(m.id)}
-                className={`chip !px-2 truncate ${assignedTo === m.id ? 'chip-active' : ''}`}
+                className={`chip flex-1 truncate ${assignedTo === m.id ? 'chip-on' : ''}`}
               >
                 {m.id === uid ? 'Yo' : m.name}
               </button>
@@ -257,12 +257,17 @@ function AddTask({ onClose, onSaved, uid }: { onClose: () => void; onSaved: () =
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">Fecha límite</label>
-            <input className="input" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+            <input
+              className="input !py-3"
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
           </div>
           <div>
             <label className="label">Repetir</label>
             <select
-              className="input"
+              className="input !py-3"
               value={recurrence}
               onChange={(e) => setRecurrence(e.target.value as Recurrence)}
             >
@@ -275,7 +280,7 @@ function AddTask({ onClose, onSaved, uid }: { onClose: () => void; onSaved: () =
           </div>
         </div>
 
-        {error && <p className="text-sm text-rose-600">{error}</p>}
+        {error && <p className="text-sm text-down">{error}</p>}
 
         <button className="btn-primary w-full" disabled={busy || !title.trim()}>
           {busy ? 'Guardando…' : 'Crear tarea'}
