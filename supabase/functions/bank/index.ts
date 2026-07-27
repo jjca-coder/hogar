@@ -119,7 +119,12 @@ function humanMessage(err: unknown): string {
     if (err.status >= 500) return 'El banco no responde ahora mismo. Inténtalo más tarde.'
     return 'El banco ha rechazado la petición.'
   }
-  return err instanceof Error ? err.message : 'Algo ha ido mal.'
+  if (err instanceof Error) return err.message
+  // Objetos de error de PostgREST y similares: se aprovecha su mensaje
+  if (err && typeof err === 'object' && 'message' in err) {
+    return String((err as { message: unknown }).message)
+  }
+  return 'Algo ha ido mal.'
 }
 
 /**
@@ -294,8 +299,10 @@ async function finishConnection(
       household_id: householdId,
       connection_id: connection.id,
       institution_id: institutionId,
-      // Muchos bancos no mandan nombre: mejor "Sabadell ···1234" que "Cuenta"
-      name: acc.name || acc.product || (last4 ? `${bankName} ···${last4}` : bankName),
+      // OJO con `acc.name`: la mayoría de bancos españoles mandan ahí el
+      // TITULAR, no la cuenta, y salen todas llamadas igual. Se prefiere el
+      // producto y, si no viene, el banco con los últimos 4 del IBAN.
+      name: acc.product || (last4 ? `${bankName} ···${last4}` : bankName),
       type: acc.cash_account_type === 'CARD' ? 'credit_card' : 'checking',
       currency: acc.currency ?? 'EUR',
       // Del IBAN solo se guardan los 4 últimos: el completo nunca sale de aquí
