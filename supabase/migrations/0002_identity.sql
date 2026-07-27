@@ -63,6 +63,57 @@ create table public.user_settings (
   updated_at timestamptz not null default now()
 );
 
+-- ---------- Helpers de permisos ----------
+-- Van aquí, no en 0001, porque consultan household_members y PostgreSQL
+-- valida el cuerpo de las funciones SQL al crearlas.
+-- Son SECURITY DEFINER para romper la recursión de RLS: una política sobre
+-- household_members no puede consultar household_members a través de RLS.
+
+/** ¿El usuario actual pertenece al hogar? */
+create or replace function private.is_member(h uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.household_members
+    where household_id = h and user_id = auth.uid()
+  );
+$$;
+
+/** Rol del usuario actual en el hogar (null si no pertenece). */
+create or replace function private.role_in(h uuid)
+returns text language sql stable security definer set search_path = '' as $$
+  select role from public.household_members
+  where household_id = h and user_id = auth.uid();
+$$;
+
+/** ¿Puede escribir datos financieros? Los roles viewer y child, no. */
+create or replace function private.can_write_finances(h uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.role_in(h) in ('owner', 'adult');
+$$;
+
+/** ¿Puede ver datos financieros? El rol child nunca ve finanzas. */
+create or replace function private.can_read_finances(h uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.role_in(h) in ('owner', 'adult', 'viewer');
+$$;
+
+/** ¿Es owner del hogar? (gestión de miembros y ajustes del hogar) */
+create or replace function private.is_owner(h uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select private.role_in(h) = 'owner';
+$$;
+
+/** ¿Comparten hogar el usuario actual y otro usuario? Para ver perfiles. */
+create or replace function private.shares_household(u uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1
+    from public.household_members a
+    join public.household_members b using (household_id)
+    where a.user_id = auth.uid() and b.user_id = u
+  );
+$$;
+
 create trigger touch_profiles before update on public.profiles
   for each row execute function private.touch_updated_at();
 create trigger touch_households before update on public.households

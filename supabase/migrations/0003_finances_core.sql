@@ -82,6 +82,12 @@ create table public.accounts (
 create index idx_accounts_household on public.accounts (household_id, position)
   where archived = false;
 
+/** Hogar al que pertenece una cuenta, para políticas en cascada. */
+create or replace function private.account_household(acc uuid)
+returns uuid language sql stable security definer set search_path = '' as $$
+  select household_id from public.accounts where id = acc;
+$$;
+
 -- ---------- Comercios normalizados ----------
 
 create table public.merchants (
