@@ -14,6 +14,7 @@ import ImportStatement from '@/pages/ImportStatement'
 import Budgets from '@/pages/Budgets'
 import Subscriptions from '@/pages/Subscriptions'
 import { Privacy, Terms } from '@/pages/Legal'
+import ConnectBank from '@/pages/ConnectBank'
 import { Card, EmptyState } from '@/design-system/primitives'
 
 function Loading() {
@@ -107,6 +108,8 @@ export default function App() {
         <Route path="/finanzas" element={<Transactions />} />
         <Route path="/finanzas/cuentas" element={<Accounts />} />
         <Route path="/finanzas/importar" element={<ImportStatement />} />
+        <Route path="/finanzas/cuentas/conectar" element={<ConnectBank />} />
+        <Route path="/finanzas/cuentas/callback" element={<ConnectBank />} />
         <Route path="/finanzas/presupuesto" element={<Budgets />} />
         <Route path="/finanzas/suscripciones" element={<Subscriptions />} />
         <Route

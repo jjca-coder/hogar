@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Landmark, Plus, Trash2 } from 'lucide-react'
 import {
   isLiability,
@@ -173,14 +174,35 @@ export default function Accounts() {
         })
       )}
 
-      {canWriteFinances && list.length > 0 && (
-        <button
-          onClick={() => setCreating(true)}
-          className="w-full py-4 rounded-[16px] border border-dashed t-subhead font-semibold flex items-center justify-center gap-2 transition-transform active:scale-[0.99]"
-          style={{ borderColor: 'var(--separator-opaque)', color: 'var(--text-tertiary)' }}
-        >
-          <Plus size={17} /> Añadir cuenta
-        </button>
+      {canWriteFinances && (
+        <div className="space-y-3">
+          <Link to="/finanzas/cuentas/conectar" className="block">
+            <Card className="flex items-center gap-3 active:scale-[0.99] transition-transform">
+              <span
+                className="w-10 h-10 rounded-[12px] flex items-center justify-center shrink-0"
+                style={{ backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }}
+              >
+                <Landmark size={18} />
+              </span>
+              <div className="flex-1">
+                <p className="t-body font-medium">Conectar mi banco</p>
+                <p className="t-footnote text-[var(--text-tertiary)]">
+                  Los movimientos entran solos
+                </p>
+              </div>
+            </Card>
+          </Link>
+
+          {list.length > 0 && (
+            <button
+              onClick={() => setCreating(true)}
+              className="w-full py-4 rounded-[16px] border border-dashed t-subhead font-semibold flex items-center justify-center gap-2 transition-transform active:scale-[0.99]"
+              style={{ borderColor: 'var(--separator-opaque)', color: 'var(--text-tertiary)' }}
+            >
+              <Plus size={17} /> Añadir cuenta a mano
+            </button>
+          )}
+        </div>
       )}
 
       {(creating || editing) && (
