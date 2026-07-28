@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeftRight, Trash2, Users } from 'lucide-react'
+import { ArrowLeftRight, Repeat, Trash2, Users } from 'lucide-react'
 import { parseAmountToMinor, type Category, type Transaction } from '@aurora/shared'
 import { sb, humanError } from '@/lib/supabase'
 import { useAccounts, useCategories, useHouseholdMembers } from '@/lib/queries'
@@ -39,6 +39,7 @@ export default function EditTransactionSheet({
   const [isTransfer, setIsTransfer] = useState(transaction.is_transfer)
   const [excluded, setExcluded] = useState(transaction.excluded_from_budget)
   const [paidBy, setPaidBy] = useState<string | null>(transaction.paid_by)
+  const [isSubscription, setIsSubscription] = useState(transaction.is_subscription)
   const [error, setError] = useState('')
 
   const pickable = useMemo(() => {
@@ -82,6 +83,8 @@ export default function EditTransactionSheet({
           excluded_from_budget: isTransfer || excluded,
           // Quién pagó solo aplica en conjuntas; en el resto se limpia.
           paid_by: showPaidBy ? paidBy : null,
+          // Suscripción solo tiene sentido en un gasto que no sea traspaso.
+          is_subscription: !isTransfer && kind === 'expense' ? isSubscription : false,
           reviewed: true,
         })
         .eq('id', transaction.id)
@@ -190,6 +193,28 @@ export default function EditTransactionSheet({
               </div>
               <Switch checked={excluded} onChange={setExcluded} label="Fuera del presupuesto" />
             </div>
+
+            {kind === 'expense' && (
+              <div className="flex items-start gap-3">
+                <div
+                  className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 mt-0.5"
+                  style={{ backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }}
+                >
+                  <Repeat size={17} />
+                </div>
+                <div className="flex-1">
+                  <p className="t-body">Es una suscripción</p>
+                  <p className="t-footnote text-[var(--text-tertiary)] mt-0.5 leading-relaxed">
+                    Aparecerá en Suscripciones aunque todavía no se repita.
+                  </p>
+                </div>
+                <Switch
+                  checked={isSubscription}
+                  onChange={setIsSubscription}
+                  label="Es una suscripción"
+                />
+              </div>
+            )}
           </>
         )}
 

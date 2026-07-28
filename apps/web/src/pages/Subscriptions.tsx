@@ -6,10 +6,10 @@ import { ArrowLeft, Repeat, TrendingUp } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
   CADENCE_LABELS,
-  detectRecurring,
+  detectSubscriptions,
   money,
   upperFirst,
-  type CandidateTransaction,
+  type SubscriptionCandidate,
   type Transaction,
 } from '@aurora/shared'
 import { sb } from '@/lib/supabase'
@@ -35,7 +35,7 @@ export default function Subscriptions() {
       const since = format(subMonths(new Date(), 18), 'yyyy-MM-dd')
       const { data, error } = await sb()
         .from('transactions')
-        .select('id, clean_description, raw_description, amount, booked_at, category_id')
+        .select('id, clean_description, raw_description, amount, booked_at, category_id, is_subscription')
         .eq('household_id', householdId!)
         .lt('amount', 0)
         .gte('booked_at', since)
@@ -48,14 +48,15 @@ export default function Subscriptions() {
   const catById = useMemo(() => new Map((categories ?? []).map((c) => [c.id, c])), [categories])
 
   const detected = useMemo(() => {
-    const candidates: CandidateTransaction[] = (transactions ?? []).map((t) => ({
+    const candidates: SubscriptionCandidate[] = (transactions ?? []).map((t) => ({
       id: t.id,
       description: t.clean_description || t.raw_description,
       amount: t.amount,
       date: t.booked_at,
       category_id: t.category_id,
+      isSubscription: t.is_subscription,
     }))
-    return detectRecurring(candidates)
+    return detectSubscriptions(candidates)
   }, [transactions])
 
   const yearlyTotal = detected.reduce((s, d) => s + d.yearlyCost, 0)
@@ -73,7 +74,7 @@ export default function Subscriptions() {
       <div>
         <h1 className="t-title-1">Suscripciones</h1>
         <p className="t-subhead text-[var(--text-tertiary)] mt-1">
-          Detectadas solas a partir de tus movimientos
+          Las que detecto solas y las que marcas a mano
         </p>
       </div>
 
@@ -87,7 +88,7 @@ export default function Subscriptions() {
           <EmptyState
             icon={<Repeat size={30} />}
             title="Todavía no veo pagos periódicos"
-            description="Hacen falta al menos tres cargos del mismo comercio con importe parecido. Importa varios meses de extractos y aparecerán solas."
+            description="Se detectan solas con tres cargos parecidos del mismo sitio. O marca cualquier movimiento como suscripción (tocándolo) y aparecerá aquí al momento."
           />
         </Card>
       ) : (
@@ -122,8 +123,11 @@ export default function Subscriptions() {
                   <div className="flex-1 min-w-0">
                     <p className="t-body truncate">{d.name}</p>
                     <p className="t-footnote text-[var(--text-tertiary)]">
-                      {CADENCE_LABELS[d.cadence]} · próximo{' '}
-                      {upperFirst(format(parseISO(d.nextExpected), "d 'de' LLL", { locale: es }))}
+                      {d.manual
+                        ? `${CADENCE_LABELS[d.cadence]} · marcada a mano`
+                        : `${CADENCE_LABELS[d.cadence]} · próximo ${upperFirst(
+                            format(parseISO(d.nextExpected), "d 'de' LLL", { locale: es }),
+                          )}`}
                     </p>
                   </div>
                   <div className="text-right">

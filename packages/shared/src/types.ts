@@ -118,6 +118,8 @@ export interface Transaction {
   counterparty: string | null
   /** En cuentas conjuntas, qué miembro puso el dinero. */
   paid_by: string | null
+  /** Marcada a mano como suscripción; fuerza su aparición en Suscripciones. */
+  is_subscription: boolean
 }
 
 export const CATEGORY_KINDS = ['expense', 'income', 'transfer'] as const

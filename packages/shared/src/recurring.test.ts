@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { detectRecurring, normalizeMerchant, type CandidateTransaction } from './recurring'
+import {
+  detectRecurring,
+  detectSubscriptions,
+  normalizeMerchant,
+  type CandidateTransaction,
+  type SubscriptionCandidate,
+} from './recurring'
 
 /** Genera N cargos del mismo comercio separados por `gap` días. */
 function series(
@@ -111,5 +117,39 @@ describe('detectRecurring', () => {
     const found = detectRecurring(series('NETFLIX', 17.99, 4, 30, '2026-01-05'))
     expect(found[0]?.lastSeen).toBe('2026-04-05')
     expect(found[0]?.nextExpected).toBe('2026-05-05')
+  })
+})
+
+/** Marca como suscripción los cargos de una serie. */
+function marked(items: CandidateTransaction[]): SubscriptionCandidate[] {
+  return items.map((t) => ({ ...t, isSubscription: true }))
+}
+
+describe('detectSubscriptions', () => {
+  it('saca a mano un comercio marcado aunque solo tenga un cargo', () => {
+    const found = detectSubscriptions(marked(series('GYM', 39.99, 1, 30)))
+    expect(found).toHaveLength(1)
+    expect(found[0]?.manual).toBe(true)
+    expect(found[0]?.cadence).toBe('monthly') // sin ritmo aún, se asume mensual
+    expect(found[0]?.averageAmount).toBe(3999)
+  })
+
+  it('sin marcar y con un solo cargo, no la considera suscripción', () => {
+    const found = detectSubscriptions(
+      series('GYM', 39.99, 1, 30).map((t) => ({ ...t, isSubscription: false })),
+    )
+    expect(found).toHaveLength(0)
+  })
+
+  it('las detectadas solas siguen saliendo y no cuentan como manuales', () => {
+    const found = detectSubscriptions(series('NETFLIX', 17.99, 4, 30))
+    expect(found).toHaveLength(1)
+    expect(found[0]?.manual).toBe(false)
+  })
+
+  it('si una serie ya se detecta sola, marcar no la duplica ni la vuelve manual', () => {
+    const found = detectSubscriptions(marked(series('SPOTIFY', 10.99, 4, 30)))
+    expect(found).toHaveLength(1)
+    expect(found[0]?.manual).toBe(false)
   })
 })

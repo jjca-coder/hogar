@@ -37,6 +37,8 @@ export interface DetectedRecurring {
   /** El último importe subió más de un 5% respecto a la media anterior. */
   priceIncreased: boolean
   transactionIds: string[]
+  /** Aparece porque el usuario la marcó a mano, no por repetición. */
+  manual: boolean
 }
 
 /**
@@ -141,6 +143,82 @@ export function detectRecurring(
       yearlyCost: average * YEARLY_MULTIPLIER[match.cadence],
       priceIncreased: lastAmount > previousAvg * 1.05,
       transactionIds: items.map((t) => t.id),
+      manual: false,
+    })
+  }
+
+  return result.sort((a, b) => b.yearlyCost - a.yearlyCost)
+}
+
+export interface SubscriptionCandidate extends CandidateTransaction {
+  /** El usuario la marcó como suscripción desde el movimiento. */
+  isSubscription?: boolean
+}
+
+const DAYS_BY_CADENCE: Record<Cadence, number> = {
+  weekly: 7,
+  biweekly: 14,
+  monthly: 30,
+  quarterly: 91,
+  yearly: 365,
+}
+
+/**
+ * Igual que `detectRecurring`, pero además fuerza a que aparezcan los comercios
+ * que el usuario ha marcado a mano como suscripción, aunque todavía no se
+ * repitan lo suficiente. Marcar un solo cargo de Netflix basta para que Netflix
+ * salga en la lista; cuando haya más cargos, se afina la cadencia sola.
+ */
+export function detectSubscriptions(
+  transactions: readonly SubscriptionCandidate[],
+): DetectedRecurring[] {
+  const groups = new Map<string, SubscriptionCandidate[]>()
+  for (const t of transactions) {
+    if (t.amount >= 0) continue // solo gastos
+    const key = normalizeMerchant(t.description)
+    if (key.length < 3) continue
+    groups.set(key, [...(groups.get(key) ?? []), t])
+  }
+
+  const result: DetectedRecurring[] = []
+
+  for (const [key, items] of groups) {
+    const marked = items.some((t) => t.isSubscription)
+
+    const amounts = items.map((t) => Math.abs(t.amount))
+    const average = Math.round(amounts.reduce((a, b) => a + b, 0) / amounts.length)
+    const withinTolerance = amounts.every((a) => Math.abs(a - average) <= average * 0.1)
+
+    const gap = medianGap(items.map((t) => t.date))
+    const match = CADENCES.find((c) => Math.abs(gap - c.days) <= c.tolerance)
+
+    // Automática: 3+ cargos, importes estables y cadencia clara.
+    const autoQualifies = items.length >= 3 && withinTolerance && Boolean(match)
+    // Si ni se detecta sola ni está marcada, no es suscripción.
+    if (!autoQualifies && !marked) continue
+
+    const sorted = [...items].sort((a, b) => (a.date < b.date ? 1 : -1))
+    const lastSeen = sorted[0]!.date
+    // Con cadencia clara se usa; si se marcó a mano y aún no hay ritmo, mensual.
+    const cadence: Cadence = match?.cadence ?? 'monthly'
+    const lastAmount = Math.abs(sorted[0]!.amount)
+    const previous = sorted.slice(1).map((t) => Math.abs(t.amount))
+    const previousAvg =
+      previous.length > 0 ? previous.reduce((a, b) => a + b, 0) / previous.length : lastAmount
+
+    result.push({
+      key,
+      name: sorted[0]!.description || key,
+      category_id: sorted[0]!.category_id,
+      cadence,
+      averageAmount: average,
+      occurrences: items.length,
+      lastSeen,
+      nextExpected: addDaysISO(lastSeen, DAYS_BY_CADENCE[cadence]),
+      yearlyCost: average * YEARLY_MULTIPLIER[cadence],
+      priceIncreased: lastAmount > previousAvg * 1.05,
+      transactionIds: items.map((t) => t.id),
+      manual: !autoQualifies && marked,
     })
   }
 
