@@ -292,38 +292,62 @@ async function finishConnection(
     .single()
   if (connError) throw connError
 
-  const discovered = []
+  // Descubrir/reconciliar cuentas. Si una cuenta con el mismo IBAN ya existe en
+  // el hogar (de una conexión anterior), se ACTUALIZA en vez de duplicarla: así
+  // reconectar para añadir una tarjeta no clona las cuentas ni deshace lo que el
+  // usuario ya ajustó (nombre, si es conjunta, la clasificación de sus movimientos).
+  let discoveredCount = 0
   for (const acc of session.accounts ?? []) {
     const iban = acc.account_id?.iban ?? acc.account_id?.other?.identification ?? ''
-    const last4 = iban ? iban.slice(-4).toUpperCase() : null
+    const rawLast4 = iban ? iban.slice(-4).toUpperCase() : null
+    const last4 = rawLast4 && /^[0-9A-Z]{4}$/.test(rawLast4) ? rawLast4 : null
     // Una tarjeta puede venir marcada por su tipo o por su uso; se detecta por
     // cualquiera de los dos para que caiga en el grupo "Tarjetas".
     const isCard =
       acc.cash_account_type === 'CARD' ||
       /card|tarjeta|cr[eé]dito/i.test(`${acc.product ?? ''} ${acc.usage ?? ''}`)
-    discovered.push({
-      household_id: householdId,
-      connection_id: connection.id,
-      institution_id: institutionId,
-      // OJO con `acc.name`: la mayoría de bancos españoles mandan ahí el
-      // TITULAR, no la cuenta, y salen todas llamadas igual. Se prefiere el
-      // producto y, si no viene, el banco con los últimos 4 del IBAN.
-      name: acc.product || (last4 ? `${bankName} ···${last4}` : bankName),
-      type: isCard ? 'credit_card' : 'checking',
-      currency: acc.currency ?? 'EUR',
-      // Del IBAN solo se guardan los 4 últimos: el completo nunca sale de aquí
-      iban_last4: last4 && /^[0-9A-Z]{4}$/.test(last4) ? last4 : null,
-      provider_account_id: acc.uid,
-      is_manual: false,
-      current_balance: 0,
-    })
-  }
 
-  if (discovered.length > 0) {
-    const { error } = await supabase
-      .from('accounts')
-      .upsert(discovered, { onConflict: 'connection_id,provider_account_id' })
-    if (error) throw error
+    // ¿Ya existe esta cuenta por su IBAN (mismo banco)? Solo con últimos 4 fiables.
+    let existingId: string | null = null
+    if (last4) {
+      let q = supabase
+        .from('accounts')
+        .select('id')
+        .eq('household_id', householdId)
+        .eq('iban_last4', last4)
+      if (institutionId) q = q.eq('institution_id', institutionId)
+      const { data: existing } = await q.limit(1).maybeSingle()
+      existingId = (existing?.id as string | undefined) ?? null
+    }
+
+    if (existingId) {
+      // Se repunta a la nueva conexión/sesión, sin pisar nombre, tipo ni dueño.
+      await supabase
+        .from('accounts')
+        .update({
+          connection_id: connection.id,
+          institution_id: institutionId,
+          provider_account_id: acc.uid,
+          is_manual: false,
+        })
+        .eq('id', existingId)
+    } else {
+      await supabase.from('accounts').insert({
+        household_id: householdId,
+        connection_id: connection.id,
+        institution_id: institutionId,
+        // OJO con `acc.name`: la mayoría de bancos españoles mandan ahí el
+        // TITULAR, no la cuenta. Se prefiere el producto y, si no, el banco+IBAN.
+        name: acc.product || (last4 ? `${bankName} ···${last4}` : bankName),
+        type: isCard ? 'credit_card' : 'checking',
+        currency: acc.currency ?? 'EUR',
+        iban_last4: last4,
+        provider_account_id: acc.uid,
+        is_manual: false,
+        current_balance: 0,
+      })
+    }
+    discoveredCount++
   }
 
   // Primera sincronización inmediata: sin esto las cuentas se quedan a 0 €
@@ -342,7 +366,7 @@ async function finishConnection(
       .eq('id', connection.id)
   }
 
-  return { connectionId: connection.id, accounts: discovered.length, transactions: synced }
+  return { connectionId: connection.id, accounts: discoveredCount, transactions: synced }
 }
 
 async function syncConnection(supabase: SupabaseClient, connectionId: string) {
