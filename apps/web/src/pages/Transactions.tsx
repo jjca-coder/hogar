@@ -13,8 +13,16 @@ import {
   X,
 } from 'lucide-react'
 import { money, sum, upperFirst, type Category, type Transaction } from '@aurora/shared'
-import { monthRange, useAccounts, useCategories, useTransactions } from '@/lib/queries'
+import {
+  monthRange,
+  useAccounts,
+  useCategories,
+  useHouseholdMembers,
+  useTransactions,
+} from '@/lib/queries'
 import EditTransactionSheet from '@/components/EditTransactionSheet'
+import ScopeSwitcher from '@/components/ScopeSwitcher'
+import { useScopedFinances } from '@/lib/scope'
 import { usePermissions } from '@/lib/session'
 import { Amount, Card, EmptyState, InsetList, Skeleton } from '@/design-system/primitives'
 
@@ -40,10 +48,17 @@ export default function Transactions() {
   const [sort, setSort] = useState<'date' | 'amount'>('date')
   const [showFilters, setShowFilters] = useState(false)
 
+  const { data: members } = useHouseholdMembers()
   const catById = useMemo(() => new Map((categories ?? []).map((c) => [c.id, c])), [categories])
   const accById = useMemo(() => new Map((accounts ?? []).map((a) => [a.id, a])), [accounts])
+  const memberById = useMemo(
+    () => new Map((members ?? []).map((m) => [m.user_id, m.display_name])),
+    [members],
+  )
 
-  const list = useMemo(() => transactions ?? [], [transactions])
+  // El ámbito activo (Todo / Mío / Conjunto) decide qué movimientos entran.
+  const { visibleTransactions } = useScopedFinances(accounts, transactions)
+  const list = visibleTransactions
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -143,6 +158,8 @@ export default function Transactions() {
           </Card>
         </div>
       </header>
+
+      <ScopeSwitcher accounts={accounts} />
 
       <div className="flex gap-2">
         <div className="relative flex-1">
@@ -270,6 +287,7 @@ export default function Transactions() {
               {items.map((t) => {
                 const cat = t.category_id ? catById.get(t.category_id) : undefined
                 const acc = accById.get(t.account_id)
+                const payer = t.paid_by ? memberById.get(t.paid_by) : undefined
                 return (
                   <button
                     key={t.id}
@@ -294,7 +312,9 @@ export default function Transactions() {
                       <p className="t-footnote text-[var(--text-tertiary)] truncate">
                         {t.is_transfer
                           ? `Traspaso · ${acc?.name ?? ''}`
-                          : [cat?.name ?? 'Sin categoría', acc?.name].filter(Boolean).join(' · ')}
+                          : [cat?.name ?? 'Sin categoría', acc?.name, payer && `pagó ${payer}`]
+                              .filter(Boolean)
+                              .join(' · ')}
                       </p>
                     </div>
                     <Amount

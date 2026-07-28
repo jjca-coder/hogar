@@ -32,6 +32,35 @@ export function useAccounts() {
   })
 }
 
+export interface HouseholdMember {
+  user_id: string
+  display_name: string
+}
+
+/** Miembros del hogar activo, para poder atribuir quién pagó algo. */
+export function useHouseholdMembers() {
+  const { membership } = useActiveHousehold()
+  const h = membership?.household_id
+  return useQuery({
+    queryKey: ['members', h],
+    enabled: Boolean(h),
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<HouseholdMember[]> => {
+      const { data, error } = await sb()
+        .from('household_members')
+        .select('user_id, profile:profiles(display_name)')
+        .eq('household_id', h!)
+      if (error) throw error
+      return (data ?? []).map((m) => {
+        // El join a uno se tipa como array por una rareza de Supabase; en
+        // ejecución es un objeto. Se castea a través de unknown.
+        const profile = m.profile as unknown as { display_name: string | null } | null
+        return { user_id: m.user_id as string, display_name: profile?.display_name || 'Alguien' }
+      })
+    },
+  })
+}
+
 export function useCategories() {
   const { membership } = useActiveHousehold()
   const h = membership?.household_id

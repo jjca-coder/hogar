@@ -6,6 +6,8 @@ import { ChevronRight, Eye, EyeOff, PiggyBank, Repeat, Settings, Wallet } from '
 import { money, sum, upperFirst, type Category } from '@aurora/shared'
 import { monthRange, useAccounts, useCategories, useTransactions } from '@/lib/queries'
 import { useActiveHousehold, useProfile, usePermissions } from '@/lib/session'
+import { useScopedFinances } from '@/lib/scope'
+import ScopeSwitcher from '@/components/ScopeSwitcher'
 import { useTheme } from '@/design-system/theme'
 import { Amount, Card, EmptyState, Skeleton } from '@/design-system/primitives'
 
@@ -22,11 +24,17 @@ export default function Dashboard() {
 
   const catById = useMemo(() => new Map((categories ?? []).map((c) => [c.id, c])), [categories])
 
-  const counted = (accounts ?? []).filter((a) => a.include_in_net_worth)
+  // Todo respeta el ámbito activo (Todo / Mío / Conjunto).
+  const { visibleAccounts, visibleTransactions } = useScopedFinances(accounts, transactions)
+
+  const counted = visibleAccounts.filter((a) => a.include_in_net_worth)
   const netWorth = sum(counted.map((a) => money(a.current_balance)))
 
   // Los traspasos entre cuentas propias no son gasto ni ingreso
-  const txs = useMemo(() => (transactions ?? []).filter((t) => !t.is_transfer), [transactions])
+  const txs = useMemo(
+    () => visibleTransactions.filter((t) => !t.is_transfer),
+    [visibleTransactions],
+  )
   const spent = sum(txs.filter((t) => t.amount < 0).map((t) => money(-t.amount)))
   const earned = sum(txs.filter((t) => t.amount > 0).map((t) => money(t.amount)))
 
@@ -100,6 +108,8 @@ export default function Dashboard() {
         </Card>
       ) : (
         <>
+          <ScopeSwitcher accounts={accounts} />
+
           <Link to="/finanzas/cuentas" className="block">
             <Card className="active:scale-[0.99] transition-transform">
               <div className="flex items-center justify-between">

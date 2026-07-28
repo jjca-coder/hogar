@@ -14,7 +14,9 @@ import {
 } from '@aurora/shared'
 import { sb, humanError } from '@/lib/supabase'
 import { useAccounts, useDeleteAccount, useSaveAccount } from '@/lib/queries'
-import { useActiveHousehold, usePermissions } from '@/lib/session'
+import { useActiveHousehold, usePermissions, useUserId } from '@/lib/session'
+import { useScopedFinances } from '@/lib/scope'
+import ScopeSwitcher from '@/components/ScopeSwitcher'
 import {
   Amount,
   Button,
@@ -110,8 +112,9 @@ export default function Accounts() {
   }
 
   // Memoizado: `accounts ?? []` crearía un array nuevo en cada render y
-  // anularía la caché de los useMemo que dependen de él.
-  const list = useMemo(() => accounts ?? [], [accounts])
+  // anularía la caché de los useMemo que dependen de él. El ámbito activo
+  // (Todo / Mío / Conjunto) decide qué cuentas se muestran y suman.
+  const { visibleAccounts: list } = useScopedFinances(accounts)
   const counted = list.filter((a) => a.include_in_net_worth)
   const netWorth = sum(counted.map((a) => money(a.current_balance)))
   const assets = sum(
@@ -149,6 +152,8 @@ export default function Accounts() {
           <Amount value={netWorth} compact />
         </h1>
       </header>
+
+      <ScopeSwitcher accounts={accounts} />
 
       {list.length > 0 && (
         <div className="grid grid-cols-2 gap-3">
@@ -310,6 +315,7 @@ export default function Accounts() {
 function AccountSheet({ account, onClose }: { account: Account | null; onClose: () => void }) {
   const save = useSaveAccount()
   const remove = useDeleteAccount()
+  const userId = useUserId()
   const [name, setName] = useState(account?.name ?? '')
   const [type, setType] = useState<AccountType>(account?.type ?? 'checking')
   const [balance, setBalance] = useState(
@@ -338,7 +344,8 @@ function AccountSheet({ account, onClose }: { account: Account | null; onClose: 
         type,
         // Las deudas se escriben en positivo y se guardan en negativo
         current_balance: liability ? -Math.abs(minor) : minor,
-        owner_id: null,
+        // Conjunta = sin dueño; personal = mía (o se conserva quien la tuviera).
+        owner_id: shared ? null : (account?.owner_id ?? userId),
         include_in_net_worth: inNetWorth,
       })
       onClose()

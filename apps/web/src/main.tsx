@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from '@/design-system/theme'
 import { SessionProvider } from '@/lib/session'
+import { FinanceScopeProvider } from '@/lib/scope'
 import App from '@/App'
 import '@/index.css'
 
@@ -25,9 +26,11 @@ createRoot(root).render(
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <SessionProvider>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
+          <FinanceScopeProvider>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </FinanceScopeProvider>
         </SessionProvider>
       </ThemeProvider>
     </QueryClientProvider>

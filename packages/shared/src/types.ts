@@ -114,6 +114,10 @@ export interface Transaction {
   source: TransactionSource
   reviewed: boolean
   excluded_from_budget: boolean
+  /** Nombre del cobrador u ordenante según el banco. */
+  counterparty: string | null
+  /** En cuentas conjuntas, qué miembro puso el dinero. */
+  paid_by: string | null
 }
 
 export const CATEGORY_KINDS = ['expense', 'income', 'transfer'] as const

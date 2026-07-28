@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeftRight, Trash2 } from 'lucide-react'
+import { ArrowLeftRight, Trash2, Users } from 'lucide-react'
 import { parseAmountToMinor, type Category, type Transaction } from '@aurora/shared'
 import { sb, humanError } from '@/lib/supabase'
-import { useAccounts, useCategories } from '@/lib/queries'
+import { useAccounts, useCategories, useHouseholdMembers } from '@/lib/queries'
 import { Button, Segmented, Sheet, Switch } from '@/design-system/primitives'
 
 /**
@@ -24,6 +24,7 @@ export default function EditTransactionSheet({
   const queryClient = useQueryClient()
   const { data: categories } = useCategories()
   const { data: accounts } = useAccounts()
+  const { data: members } = useHouseholdMembers()
 
   const [description, setDescription] = useState(
     transaction.clean_description || transaction.raw_description,
@@ -37,6 +38,7 @@ export default function EditTransactionSheet({
   )
   const [isTransfer, setIsTransfer] = useState(transaction.is_transfer)
   const [excluded, setExcluded] = useState(transaction.excluded_from_budget)
+  const [paidBy, setPaidBy] = useState<string | null>(transaction.paid_by)
   const [error, setError] = useState('')
 
   const pickable = useMemo(() => {
@@ -44,10 +46,15 @@ export default function EditTransactionSheet({
     return (categories ?? []).filter((c) => c.kind === wanted && c.parent_id !== null)
   }, [categories, kind])
 
-  const accountName = useMemo(
-    () => (accounts ?? []).find((a) => a.id === transaction.account_id)?.name ?? '',
+  const account = useMemo(
+    () => (accounts ?? []).find((a) => a.id === transaction.account_id),
     [accounts, transaction.account_id],
   )
+  const accountName = account?.name ?? ''
+  // "¿Quién pagó?" solo tiene sentido en cuentas conjuntas y con más de una
+  // persona: en una cuenta personal siempre pagas tú.
+  const isJoint = account?.owner_id === null
+  const showPaidBy = isJoint && (members?.length ?? 0) > 1 && !isTransfer
 
   const refresh = async () => {
     await Promise.all([
@@ -73,6 +80,8 @@ export default function EditTransactionSheet({
           is_transfer: isTransfer,
           // Un traspaso nunca debe contar en el presupuesto
           excluded_from_budget: isTransfer || excluded,
+          // Quién pagó solo aplica en conjuntas; en el resto se limpia.
+          paid_by: showPaidBy ? paidBy : null,
           reviewed: true,
         })
         .eq('id', transaction.id)
@@ -184,6 +193,26 @@ export default function EditTransactionSheet({
           </>
         )}
 
+        {showPaidBy && (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Users size={15} className="text-[var(--text-tertiary)]" />
+              <p className="t-subhead font-medium">¿Quién pagó?</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <PayerChip label="Sin indicar" selected={paidBy === null} onSelect={() => setPaidBy(null)} />
+              {(members ?? []).map((m) => (
+                <PayerChip
+                  key={m.user_id}
+                  label={m.display_name}
+                  selected={paidBy === m.user_id}
+                  onSelect={() => setPaidBy(m.user_id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {error && (
           <p className="t-subhead" style={{ color: 'var(--expense)' }} role="alert">
             {error}
@@ -206,6 +235,31 @@ export default function EditTransactionSheet({
         </Button>
       </div>
     </Sheet>
+  )
+}
+
+function PayerChip({
+  label,
+  selected,
+  onSelect,
+}: {
+  label: string
+  selected: boolean
+  onSelect: () => void
+}) {
+  return (
+    <button
+      onClick={onSelect}
+      aria-pressed={selected}
+      className="px-3.5 py-2 rounded-full t-footnote font-medium border transition-all active:scale-95"
+      style={{
+        borderColor: selected ? 'var(--accent)' : 'var(--separator-opaque)',
+        backgroundColor: selected ? 'var(--accent-soft)' : 'transparent',
+        color: selected ? 'var(--accent)' : 'var(--text-secondary)',
+      }}
+    >
+      {label}
+    </button>
   )
 }
 

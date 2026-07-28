@@ -6,7 +6,7 @@ import { es } from 'date-fns/locale'
 import { ArrowLeft, Pencil, RefreshCw, Wallet } from 'lucide-react'
 import { money, sum, upperFirst, type Category, type Transaction } from '@aurora/shared'
 import { sb, humanError } from '@/lib/supabase'
-import { useAccounts, useCategories } from '@/lib/queries'
+import { useAccounts, useCategories, useHouseholdMembers } from '@/lib/queries'
 import { usePermissions } from '@/lib/session'
 import { Amount, Button, Card, EmptyState, InsetList, Skeleton } from '@/design-system/primitives'
 
@@ -24,6 +24,7 @@ export default function AccountDetail() {
   const { canWriteFinances } = usePermissions()
   const { data: accounts } = useAccounts()
   const { data: categories } = useCategories()
+  const { data: members } = useHouseholdMembers()
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState('')
 
@@ -50,6 +51,10 @@ export default function AccountDetail() {
   })
 
   const catById = useMemo(() => new Map((categories ?? []).map((c) => [c.id, c])), [categories])
+  const memberById = useMemo(
+    () => new Map((members ?? []).map((m) => [m.user_id, m.display_name])),
+    [members],
+  )
   const list = useMemo(() => transactions ?? [], [transactions])
   // Para los totales del mes, los traspasos no cuentan
   const real = useMemo(() => list.filter((t) => !t.is_transfer), [list])
@@ -211,6 +216,7 @@ export default function AccountDetail() {
                   key={t.id}
                   transaction={t}
                   category={t.category_id ? catById.get(t.category_id) : undefined}
+                  payer={t.paid_by ? memberById.get(t.paid_by) : undefined}
                 />
               ))}
             </InsetList>
@@ -224,11 +230,20 @@ export default function AccountDetail() {
 function Row({
   transaction,
   category,
+  payer,
 }: {
   transaction: Transaction
   category: Category | undefined
+  payer: string | undefined
 }) {
   const color = category?.color ?? 'var(--text-quaternary)'
+  const subtitle = [
+    category?.name ?? 'Sin categoría',
+    payer && `pagó ${payer}`,
+    transaction.status === 'pending' && 'pendiente',
+  ]
+    .filter(Boolean)
+    .join(' · ')
   return (
     <div className="inset-row">
       <span
@@ -242,10 +257,7 @@ function Row({
         <p className="t-body truncate">
           {transaction.clean_description || transaction.raw_description || 'Movimiento'}
         </p>
-        <p className="t-footnote text-[var(--text-tertiary)] truncate">
-          {category?.name ?? 'Sin categoría'}
-          {transaction.status === 'pending' && ' · pendiente'}
-        </p>
+        <p className="t-footnote text-[var(--text-tertiary)] truncate">{subtitle}</p>
       </div>
       <Amount value={money(transaction.amount)} colored signed />
     </div>

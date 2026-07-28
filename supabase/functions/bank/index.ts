@@ -160,6 +160,7 @@ interface SessionAccount {
   product?: string
   currency?: string
   cash_account_type?: string
+  usage?: string
 }
 
 interface SessionResponse {
@@ -295,6 +296,11 @@ async function finishConnection(
   for (const acc of session.accounts ?? []) {
     const iban = acc.account_id?.iban ?? acc.account_id?.other?.identification ?? ''
     const last4 = iban ? iban.slice(-4).toUpperCase() : null
+    // Una tarjeta puede venir marcada por su tipo o por su uso; se detecta por
+    // cualquiera de los dos para que caiga en el grupo "Tarjetas".
+    const isCard =
+      acc.cash_account_type === 'CARD' ||
+      /card|tarjeta|cr[eé]dito/i.test(`${acc.product ?? ''} ${acc.usage ?? ''}`)
     discovered.push({
       household_id: householdId,
       connection_id: connection.id,
@@ -303,7 +309,7 @@ async function finishConnection(
       // TITULAR, no la cuenta, y salen todas llamadas igual. Se prefiere el
       // producto y, si no viene, el banco con los últimos 4 del IBAN.
       name: acc.product || (last4 ? `${bankName} ···${last4}` : bankName),
-      type: acc.cash_account_type === 'CARD' ? 'credit_card' : 'checking',
+      type: isCard ? 'credit_card' : 'checking',
       currency: acc.currency ?? 'EUR',
       // Del IBAN solo se guardan los 4 últimos: el completo nunca sale de aquí
       iban_last4: last4 && /^[0-9A-Z]{4}$/.test(last4) ? last4 : null,
@@ -349,14 +355,18 @@ async function syncConnection(supabase: SupabaseClient, connectionId: string) {
 
   const { data: accounts } = await supabase
     .from('accounts')
-    .select('id, provider_account_id, currency')
+    .select('id, name, provider_account_id, currency')
     .eq('connection_id', connectionId)
     .not('provider_account_id', 'is', null)
 
   let inserted = 0
+  // Una cuenta que falle no debe tumbar la sincronización del resto: se anota
+  // el fallo, se sigue con las demás y se guarda un resumen en la conexión.
+  const errors: string[] = []
 
   for (const account of accounts ?? []) {
     const uid = account.provider_account_id as string
+    const label = (account.name as string) || uid
 
     // 1. Saldo
     try {
@@ -372,17 +382,22 @@ async function syncConnection(supabase: SupabaseClient, connectionId: string) {
           .eq('id', account.id)
       }
     } catch (e) {
-      console.error(`Saldo de ${uid}:`, e)
+      console.error(`Saldo de ${label}:`, e)
     }
 
-    // 2. Movimientos de los últimos 90 días
-    const since = new Date(Date.now() - 90 * 86400_000).toISOString().slice(0, 10)
-    const { transactions } = await api<{ transactions: EbTransaction[] }>(
-      `/accounts/${uid}/transactions?date_from=${since}`,
-    )
+    // 2. Movimientos de los últimos 90 días, TODAS las páginas
+    let ebTxs: EbTransaction[]
+    try {
+      const since = new Date(Date.now() - 90 * 86400_000).toISOString().slice(0, 10)
+      ebTxs = await fetchAllTransactions(uid, since)
+    } catch (e) {
+      console.error(`Movimientos de ${label}:`, e)
+      errors.push(`${label}: ${humanMessage(e)}`)
+      continue
+    }
 
     const rows = []
-    for (const t of transactions ?? []) {
+    for (const t of ebTxs) {
       const date = t.booking_date ?? t.value_date ?? t.transaction_date
       if (!date) continue
 
@@ -394,6 +409,13 @@ async function syncConnection(supabase: SupabaseClient, connectionId: string) {
         t.creditor?.name ||
         t.debtor?.name ||
         'Movimiento'
+      // Quién está al otro lado: en un gasto, el cobrador; en un ingreso, quien
+      // ordena. En una cuenta conjunta ayuda a entender de quién salió el dinero.
+      const counterparty =
+        (t.credit_debit_indicator === 'DBIT' ? t.creditor?.name : t.debtor?.name) ||
+        t.creditor?.name ||
+        t.debtor?.name ||
+        null
 
       // Idempotencia: la referencia del banco si existe, si no una huella estable
       const hash = t.entry_reference
@@ -410,11 +432,14 @@ async function syncConnection(supabase: SupabaseClient, connectionId: string) {
         currency: t.transaction_amount.currency ?? account.currency ?? 'EUR',
         raw_description: description,
         clean_description: description,
+        counterparty,
         status: t.status === 'PDNG' ? 'pending' : 'booked',
         source: 'bank',
         reviewed: false,
         dedup_hash: hash,
         provider_transaction_id: t.entry_reference ?? null,
+        // El objeto original, por si mañana hace falta un campo que hoy no uso.
+        raw: t,
       })
     }
 
@@ -432,10 +457,37 @@ async function syncConnection(supabase: SupabaseClient, connectionId: string) {
 
   await supabase
     .from('connections')
-    .update({ last_synced_at: new Date().toISOString(), last_error: null })
+    .update({
+      last_synced_at: new Date().toISOString(),
+      last_error: errors.length ? errors.join(' · ') : null,
+    })
     .eq('id', connectionId)
 
-  return { inserted }
+  return { inserted, errors }
+}
+
+/**
+ * Trae TODOS los movimientos de una cuenta siguiendo la paginación del
+ * agregador. La API devuelve las operaciones por páginas y, cuando hay más,
+ * un `continuation_key` para pedir la siguiente. Sin seguirlo solo llegaría la
+ * primera página: por eso Sabadell (que las manda de más nuevas a más viejas)
+ * se quedaba en unos pocos días en vez de traer el mes entero.
+ */
+async function fetchAllTransactions(uid: string, since: string): Promise<EbTransaction[]> {
+  const all: EbTransaction[] = []
+  let continuationKey: string | undefined
+  // Tope de seguridad frente a un bucle infinito: 90 días no dan para tanto.
+  for (let page = 0; page < 30; page++) {
+    const params = new URLSearchParams({ date_from: since })
+    if (continuationKey) params.set('continuation_key', continuationKey)
+    const res = await api<{ transactions?: EbTransaction[]; continuation_key?: string }>(
+      `/accounts/${uid}/transactions?${params.toString()}`,
+    )
+    all.push(...(res.transactions ?? []))
+    if (!res.continuation_key) break
+    continuationKey = res.continuation_key
+  }
+  return all
 }
 
 // ---------- Entrada ----------
