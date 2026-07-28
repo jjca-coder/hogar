@@ -12,7 +12,7 @@ import {
   SlidersHorizontal,
   X,
 } from 'lucide-react'
-import { money, sum, upperFirst, type Category, type Transaction } from '@aurora/shared'
+import { flowTotals, money, upperFirst, type Category, type Transaction } from '@aurora/shared'
 import {
   monthRange,
   useAccounts,
@@ -86,10 +86,10 @@ export default function Transactions() {
     return out
   }, [list, query, catById, filter, sort])
 
-  // Un traspaso entre cuentas propias no es gasto ni ingreso: se excluye
-  const real = filtered.filter((t) => !t.is_transfer)
-  const spent = sum(real.filter((t) => t.amount < 0).map((t) => money(-t.amount)))
-  const earned = sum(real.filter((t) => t.amount > 0).map((t) => money(t.amount)))
+  // Traspasos fuera y reembolsos restando: reglas de conteo centralizadas.
+  const { spent: spentMinor, earned: earnedMinor } = flowTotals(filtered)
+  const spent = money(spentMinor)
+  const earned = money(earnedMinor)
 
   const byDay = useMemo(() => {
     // Ordenado por importe no se agrupa por día: rompería el orden
@@ -312,16 +312,22 @@ export default function Transactions() {
                       <p className="t-footnote text-[var(--text-tertiary)] truncate">
                         {t.is_transfer
                           ? `Traspaso · ${acc?.name ?? ''}`
-                          : [cat?.name ?? 'Sin categoría', acc?.name, payer && `pagó ${payer}`]
+                          : [
+                              t.is_refund ? 'Reembolso' : (cat?.name ?? 'Sin categoría'),
+                              acc?.name,
+                              payer && `pagó ${payer}`,
+                            ]
                               .filter(Boolean)
                               .join(' · ')}
                       </p>
                     </div>
                     <Amount
                       value={money(t.amount)}
-                      colored={!t.is_transfer}
+                      colored={!t.is_transfer && !t.is_refund}
                       signed={!t.is_transfer}
-                      className={t.is_transfer ? 'text-[var(--text-tertiary)]' : ''}
+                      className={
+                        t.is_transfer || t.is_refund ? 'text-[var(--text-secondary)]' : ''
+                      }
                     />
                   </button>
                 )

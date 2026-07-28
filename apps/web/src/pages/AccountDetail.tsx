@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { format, isToday, isYesterday, parseISO, subMonths } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { ArrowLeft, Pencil, RefreshCw, Wallet } from 'lucide-react'
-import { money, sum, upperFirst, type Category, type Transaction } from '@aurora/shared'
+import { flowTotals, money, upperFirst, type Category, type Transaction } from '@aurora/shared'
 import { sb, humanError } from '@/lib/supabase'
 import { useAccounts, useCategories, useHouseholdMembers } from '@/lib/queries'
 import { usePermissions } from '@/lib/session'
@@ -56,8 +56,6 @@ export default function AccountDetail() {
     [members],
   )
   const list = useMemo(() => transactions ?? [], [transactions])
-  // Para los totales del mes, los traspasos no cuentan
-  const real = useMemo(() => list.filter((t) => !t.is_transfer), [list])
 
   const byDay = useMemo(() => {
     const map = new Map<string, Transaction[]>()
@@ -65,16 +63,12 @@ export default function AccountDetail() {
     return [...map.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1))
   }, [list])
 
-  const monthIn = sum(
-    list
-      .filter((t) => t.amount > 0 && t.booked_at >= format(new Date(), 'yyyy-MM-01'))
-      .map((t) => money(t.amount)),
-  )
-  const monthOut = sum(
-    real
-      .filter((t) => t.amount < 0 && t.booked_at >= format(new Date(), 'yyyy-MM-01'))
-      .map((t) => money(-t.amount)),
-  )
+  // Totales del mes con las reglas de siempre: traspasos fuera, reembolsos
+  // restando del gasto y sin contar como entrada.
+  const monthTxs = list.filter((t) => t.booked_at >= format(new Date(), 'yyyy-MM-01'))
+  const monthFlows = flowTotals(monthTxs)
+  const monthIn = money(monthFlows.earned)
+  const monthOut = money(monthFlows.spent)
 
   const syncNow = async () => {
     if (!account) return
@@ -238,7 +232,7 @@ function Row({
 }) {
   const color = category?.color ?? 'var(--text-quaternary)'
   const subtitle = [
-    category?.name ?? 'Sin categoría',
+    transaction.is_refund ? 'Reembolso' : (category?.name ?? 'Sin categoría'),
     payer && `pagó ${payer}`,
     transaction.status === 'pending' && 'pendiente',
   ]
@@ -259,7 +253,12 @@ function Row({
         </p>
         <p className="t-footnote text-[var(--text-tertiary)] truncate">{subtitle}</p>
       </div>
-      <Amount value={money(transaction.amount)} colored signed />
+      <Amount
+        value={money(transaction.amount)}
+        colored={!transaction.is_refund}
+        signed
+        className={transaction.is_refund ? 'text-[var(--text-secondary)]' : ''}
+      />
     </div>
   )
 }

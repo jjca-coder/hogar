@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { ChevronRight, Eye, EyeOff, PiggyBank, Repeat, Settings, Wallet } from 'lucide-react'
-import { money, sum, upperFirst, type Category } from '@aurora/shared'
+import { flowTotals, money, spentByCategory, sum, upperFirst, type Category } from '@aurora/shared'
 import { monthRange, useAccounts, useCategories, useTransactions } from '@/lib/queries'
 import { useActiveHousehold, useProfile, usePermissions } from '@/lib/session'
 import { useScopedFinances } from '@/lib/scope'
@@ -35,17 +35,14 @@ export default function Dashboard() {
     () => visibleTransactions.filter((t) => !t.is_transfer),
     [visibleTransactions],
   )
-  const spent = sum(txs.filter((t) => t.amount < 0).map((t) => money(-t.amount)))
-  const earned = sum(txs.filter((t) => t.amount > 0).map((t) => money(t.amount)))
+  // Reglas de conteo centralizadas: traspasos fuera, reembolsos restan gasto.
+  const { spent: spentMinor, earned: earnedMinor } = flowTotals(txs)
+  const spent = money(spentMinor)
+  const earned = money(earnedMinor)
 
-  /** Gasto agrupado por categoría, de mayor a menor. */
+  /** Gasto neto por categoría (reembolsos ya descontados), de mayor a menor. */
   const byCategory = useMemo(() => {
-    const sums = new Map<string, number>()
-    for (const t of txs) {
-      if (t.amount >= 0) continue
-      const key = t.category_id ?? 'sin'
-      sums.set(key, (sums.get(key) ?? 0) + -t.amount)
-    }
+    const sums = spentByCategory(txs)
     const rows = [...sums.entries()]
       .map(([id, total]) => ({
         id,

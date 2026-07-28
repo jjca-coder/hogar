@@ -132,11 +132,17 @@ export default function Budgets() {
       queryClient.invalidateQueries({ queryKey: ['budget-lines', householdId, periodStart] }),
   })
 
-  /** Gasto real por categoría en el mes. */
+  /** Gasto real por categoría en el mes (reembolsos descontados). */
   const spentByCategory = useMemo(() => {
     const map = new Map<string, number>()
     for (const t of transactions ?? []) {
-      if (t.amount >= 0 || t.excluded_from_budget || t.is_transfer || !t.category_id) continue
+      if (t.excluded_from_budget || t.is_transfer || !t.category_id) continue
+      // Un reembolso baja el gasto de su categoría; el resto, los gastos suman.
+      if (t.is_refund) {
+        map.set(t.category_id, (map.get(t.category_id) ?? 0) - Math.abs(t.amount))
+        continue
+      }
+      if (t.amount >= 0) continue
       map.set(t.category_id, (map.get(t.category_id) ?? 0) + -t.amount)
     }
     return map

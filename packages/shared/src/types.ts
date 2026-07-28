@@ -120,6 +120,8 @@ export interface Transaction {
   paid_by: string | null
   /** Marcada a mano como suscripción; fuerza su aparición en Suscripciones. */
   is_subscription: boolean
+  /** Devolución de una compra: no cuenta como ingreso, descuenta gasto. */
+  is_refund: boolean
 }
 
 export const CATEGORY_KINDS = ['expense', 'income', 'transfer'] as const

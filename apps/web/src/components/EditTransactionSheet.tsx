@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeftRight, Repeat, Trash2, Users } from 'lucide-react'
+import { ArrowLeftRight, Repeat, Trash2, Undo2, Users } from 'lucide-react'
 import { parseAmountToMinor, type Category, type Transaction } from '@aurora/shared'
 import { sb, humanError } from '@/lib/supabase'
 import { useAccounts, useCategories, useHouseholdMembers } from '@/lib/queries'
@@ -40,12 +40,15 @@ export default function EditTransactionSheet({
   const [excluded, setExcluded] = useState(transaction.excluded_from_budget)
   const [paidBy, setPaidBy] = useState<string | null>(transaction.paid_by)
   const [isSubscription, setIsSubscription] = useState(transaction.is_subscription)
+  const [isRefund, setIsRefund] = useState(transaction.is_refund)
   const [error, setError] = useState('')
 
+  // Un reembolso descuenta de una categoría de GASTO (la compra que se devolvió),
+  // aunque el dinero entre en positivo. Por eso ahí se ofrecen categorías de gasto.
   const pickable = useMemo(() => {
-    const wanted = kind === 'expense' ? 'expense' : 'income'
+    const wanted = kind === 'expense' || (kind === 'income' && isRefund) ? 'expense' : 'income'
     return (categories ?? []).filter((c) => c.kind === wanted && c.parent_id !== null)
-  }, [categories, kind])
+  }, [categories, kind, isRefund])
 
   const account = useMemo(
     () => (accounts ?? []).find((a) => a.id === transaction.account_id),
@@ -85,6 +88,8 @@ export default function EditTransactionSheet({
           paid_by: showPaidBy ? paidBy : null,
           // Suscripción solo tiene sentido en un gasto que no sea traspaso.
           is_subscription: !isTransfer && kind === 'expense' ? isSubscription : false,
+          // Reembolso solo aplica a dinero que entra (ingreso) y no es traspaso.
+          is_refund: !isTransfer && kind === 'income' ? isRefund : false,
           reviewed: true,
         })
         .eq('id', transaction.id)
@@ -213,6 +218,25 @@ export default function EditTransactionSheet({
                   onChange={setIsSubscription}
                   label="Es una suscripción"
                 />
+              </div>
+            )}
+
+            {kind === 'income' && (
+              <div className="flex items-start gap-3">
+                <div
+                  className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 mt-0.5"
+                  style={{ backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }}
+                >
+                  <Undo2 size={17} />
+                </div>
+                <div className="flex-1">
+                  <p className="t-body">Es un reembolso</p>
+                  <p className="t-footnote text-[var(--text-tertiary)] mt-0.5 leading-relaxed">
+                    Dinero que gastaste y ha vuelto. No cuenta como ingreso: descuenta del gasto de
+                    su categoría.
+                  </p>
+                </div>
+                <Switch checked={isRefund} onChange={setIsRefund} label="Es un reembolso" />
               </div>
             )}
           </>
